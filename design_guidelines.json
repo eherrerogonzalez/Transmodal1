@@ -1,0 +1,164 @@
+{
+  "identity": {
+    "persona": "E1 - The Anti-AI Designer",
+    "mission": "Create a 'Glass Control Tower' for logistics that feels like a high-precision instrument, not a generic admin panel.",
+    "principles": [
+      "Fusion over Imitation: Mix Swiss Poster clarity with Tactical HUD density.",
+      "Emotion First: Evoke 'Global Control' and 'Reliability'.",
+      "Content is King: Data is the hero. Use negative space to let numbers breathe.",
+      "Zoom In: Focus on critical KPIs (Exceptions, Delays).",
+      "Contrast: High contrast for readability in bright warehouse environments."
+    ]
+  },
+  "theme_strategy": {
+    "mode": "light",
+    "rationale": "Light theme is standard for logistics documentation and map readability. However, we will use a 'High-Contrast' approach (Archetype 4) to avoid the 'washed out' SaaS look.",
+    "dark_mode_support": true
+  },
+  "typography": {
+    "headings": {
+      "family": "Manrope",
+      "weights": ["600", "700", "800"],
+      "usage": "All page titles, card headers, and major KPIs. Use tight tracking (-0.02em).",
+      "fallback": "sans-serif"
+    },
+    "body": {
+      "family": "IBM Plex Sans",
+      "weights": ["400", "500"],
+      "usage": "Table data, descriptions, labels, inputs. Excellent for numbers and codes.",
+      "fallback": "monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight",
+      "h2": "text-3xl font-bold tracking-tight",
+      "h3": "text-2xl font-semibold tracking-tight",
+      "body_lg": "text-lg leading-relaxed",
+      "body_base": "text-base leading-relaxed",
+      "caption": "text-sm text-muted-foreground uppercase tracking-wider"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "name": "Deep Ocean",
+        "hex": "#0F172A",
+        "tailwind": "slate-900",
+        "usage": "Sidebar, Primary Buttons, Headings"
+      },
+      "secondary": {
+        "name": "Electric Blue",
+        "hex": "#2563EB",
+        "tailwind": "blue-600",
+        "usage": "Active States, Links, Primary Actions"
+      },
+      "accent": {
+        "name": "Signal Orange",
+        "hex": "#F97316",
+        "tailwind": "orange-500",
+        "usage": "Alerts, Delays, 'Attention Needed' badges"
+      },
+      "success": {
+        "name": "Emerald Route",
+        "hex": "#10B981",
+        "tailwind": "emerald-500",
+        "usage": "On Time, Carbon Neutral, Positive Trends"
+      },
+      "background": {
+        "main": "#F8FAFC",
+        "card": "#FFFFFF",
+        "sidebar": "#0F172A"
+      },
+      "text": {
+        "primary": "#0F172A",
+        "secondary": "#64748B",
+        "inverse": "#FFFFFF"
+      }
+    },
+    "forbidden": ["#1B93A4", "#7351B7"]
+  },
+  "layout": {
+    "structure": "Sidebar Navigation (Collapsible) + Top Header + Main Content Area",
+    "grid_system": {
+      "dashboard": "Bento Grid Mode B (High Density)",
+      "columns": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4",
+      "gap": "gap-4 or gap-6"
+    },
+    "spacing": {
+      "container_padding": "p-6 md:p-8 lg:p-10",
+      "section_gap": "gap-8",
+      "internal_card_padding": "p-6"
+    },
+    "z_index": {
+      "modal": 50,
+      "dropdown": 40,
+      "sticky_header": 30,
+      "map_controls": 20
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "Sharp or Minimal Rounding (rounded-sm)",
+      "border": "1px solid #E2E8F0 (slate-200)",
+      "shadow": "shadow-sm hover:shadow-md transition-shadow duration-200",
+      "hover_effect": "Translate Y -1px"
+    },
+    "buttons": {
+      "primary": "bg-slate-900 text-white hover:bg-slate-800 rounded-sm px-6 py-2 font-medium transition-all",
+      "secondary": "bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 rounded-sm px-6 py-2 font-medium transition-all",
+      "ghost": "hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-sm"
+    },
+    "inputs": {
+      "style": "bg-white border-slate-200 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 rounded-sm h-10"
+    },
+    "tables": {
+      "style": "Clean, dense rows. Header uppercase & tracking-wider. Row hover: bg-slate-50.",
+      "status_badges": "Pill shaped, subtle background (bg-blue-50 text-blue-700)"
+    },
+    "maps": {
+      "provider": "Google Maps (Mocked)",
+      "style": "Full height or Large Card. Custom markers for ships/containers."
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "usage": "Overlays, Toasts, Floating Action Bars",
+      "classes": "bg-white/80 backdrop-blur-md border border-white/20 shadow-lg"
+    },
+    "tracing_beam": {
+      "usage": "Active Order Cards, Critical Alerts",
+      "description": "A glowing gradient border that animates on hover or active state."
+    },
+    "micro_interactions": {
+      "hover": "All interactive elements must have a visible state change (color, transform, shadow).",
+      "loading": "Skeleton loaders for data fetching. No spinning spinners for full pages."
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "Stroke width 1.5px or 2px. Consistent size (w-5 h-5)."
+    },
+    "images": {
+      "login_bg": "https://images.unsplash.com/photo-1648583076906-60338fa01f07?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxzaGlwcGluZyUyMGNvbnRhaW5lciUyMHNoaXAlMjBvY2VhbnxlbnwwfHx8fDE3NzA2Njg1MjV8MA&ixlib=rb-4.1.0&q=85",
+      "empty_state_orders": "https://images.unsplash.com/photo-1768796372882-8b67936af681?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHwxfHxsb2dpc3RpY3MlMjB3YXJlaG91c2UlMjB3b3JrZXIlMjB0YWJsZXR8ZW58MHx8fHwxNzcwNjY4NTMwfDA&ixlib=rb-4.1.0&q=85"
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure 4.5:1 for normal text. Use Slate-600 or darker on white.",
+    "focus_states": "Visible ring-2 ring-blue-600 ring-offset-2 on all interactive elements.",
+    "aria": "Use aria-labels for icon-only buttons. Semantic HTML structure."
+  },
+  "instructions_to_main_agent": {
+    "general": "You are building a professional logistics dashboard. Prioritize data density and clarity over decorative fluff. Use the 'Bento' grid for the main dashboard. Ensure the map component is prominent.",
+    "mock_data": "Create realistic mock data for containers, orders, and financials. Do not use 'Lorem Ipsum'. Use real port names (Shanghai, Rotterdam, LA) and realistic container IDs (MSKU1234567).",
+    "routing": "Use 'react-router-dom' for navigation. Create a layout wrapper for the Sidebar and Header.",
+    "state_management": "Use React Context or simple state for this MVP. No Redux needed yet.",
+    "charts": "Use 'recharts' for the financial and emissions graphs. Style them to match the color palette (Deep Ocean, Electric Blue, Emerald).",
+    "maps": "Use '@react-google-maps/api' or a simple iframe/mock component if API key is missing. Style the map container with rounded corners and a subtle shadow."
+  },
+  "universal_guidelines": {
+    "anti_slop": "Avoid generic centered layouts. Use asymmetric grids. No 'Inter' for headings.",
+    "transitions": "Use specific transitions (transition-colors, transition-transform). NEVER transition-all.",
+    "testing": "Add data-testid to all interactive elements (buttons, inputs, links)."
+  }
+}
