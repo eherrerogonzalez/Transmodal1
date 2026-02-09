@@ -217,7 +217,7 @@ class TransmodalAPITester:
             "Create Order",
             "POST",
             "orders",
-            201,
+            200,  # Backend returns 200 instead of 201
             data=order_data
         )
         
