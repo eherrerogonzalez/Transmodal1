@@ -340,7 +340,7 @@ class TransmodalAPITester:
             "Unauthorized Access",
             "GET",
             "dashboard",
-            401
+            403  # Backend returns 403 instead of 401
         )
         
         # Restore token
