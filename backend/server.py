@@ -256,7 +256,6 @@ def generate_container_additionals(container_id: str, count: int = None):
 
 def generate_tracking_events(container_status: str, transport_mode: str):
     """Generate realistic tracking events based on container status and transport mode"""
-    from datetime import timedelta
     
     base_date = datetime.now(timezone.utc) - timedelta(days=random.randint(5, 20))
     events = []
@@ -294,26 +293,41 @@ def generate_tracking_events(container_status: str, transport_mode: str):
     }
     
     completed_count = status_progress.get(container_status, 2)
+    now = datetime.now(timezone.utc)
     
     for i, (event_name, event_key) in enumerate(applicable_events):
-        event_date = base_date + timedelta(days=i * random.randint(1, 3), hours=random.randint(0, 12))
+        # Calculate dates based on position in timeline
+        scheduled_date = base_date + timedelta(days=i * random.randint(1, 3), hours=random.randint(0, 12))
         
+        # Determine status based on dates and position
         if i < completed_count:
+            # Past events - completed
+            actual_date = scheduled_date + timedelta(hours=random.randint(-2, 6))
+            if actual_date > now:
+                actual_date = now - timedelta(hours=random.randint(1, 12))
             status = "completed"
-            actual_date = event_date.isoformat()
-            scheduled_date = (event_date - timedelta(hours=random.randint(0, 6))).isoformat()
+            actual_date_str = actual_date.isoformat()
+            scheduled_date_str = scheduled_date.isoformat()
         elif i == completed_count:
+            # Current event - in progress
             status = "in_progress"
-            actual_date = None
-            scheduled_date = (datetime.now(timezone.utc) + timedelta(hours=random.randint(1, 24))).isoformat()
+            actual_date_str = None
+            # Scheduled for near future
+            scheduled_date = now + timedelta(hours=random.randint(1, 48))
+            scheduled_date_str = scheduled_date.isoformat()
         else:
+            # Future events - pending
             status = "pending"
-            actual_date = None
-            scheduled_date = (datetime.now(timezone.utc) + timedelta(days=i - completed_count + 1)).isoformat()
+            actual_date_str = None
+            # Scheduled for future
+            scheduled_date = now + timedelta(days=i - completed_count + 1, hours=random.randint(0, 12))
+            scheduled_date_str = scheduled_date.isoformat()
         
         # Add location info
-        if "terminal" in event_key.lower() or "intermodal" in event_key.lower():
-            location = random.choice(TERMINALS) if "intermodal" not in event_key else random.choice(INTERMODAL_TERMINALS)
+        if "terminal" in event_key.lower() and "intermodal" not in event_key:
+            location = random.choice(TERMINALS)
+        elif "intermodal" in event_key:
+            location = random.choice(INTERMODAL_TERMINALS)
         elif "cedis" in event_key.lower() or "warehouse" in event_key.lower():
             location = random.choice(CEDIS_LOCATIONS)
         else:
@@ -322,8 +336,8 @@ def generate_tracking_events(container_status: str, transport_mode: str):
         events.append(TrackingEvent(
             event_name=event_name,
             event_key=event_key,
-            scheduled_date=scheduled_date,
-            actual_date=actual_date,
+            scheduled_date=scheduled_date_str,
+            actual_date=actual_date_str,
             status=status,
             location=location,
             notes=f"Referencia: REF-{random.randint(10000, 99999)}" if status == "completed" else None
