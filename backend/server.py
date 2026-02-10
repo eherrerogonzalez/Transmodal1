@@ -132,6 +132,58 @@ class PlanningForecast(BaseModel):
     delivery_calendar: List[DeliverySlot]
     budget_comparison: dict
 
+# ==================== INVENTORY & PRODUCTS MODELS ====================
+
+class Product(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku: str
+    name: str
+    brand: str
+    category: str
+    unit: str = "cajas"
+    units_per_container: int
+
+class InventoryItem(BaseModel):
+    product_id: str
+    sku: str
+    name: str
+    brand: str
+    current_stock: int
+    minimum_stock: int
+    maximum_stock: int
+    reorder_point: int
+    stock_status: str  # "critical", "low", "optimal", "excess"
+    days_of_stock: float
+    units_needed: int
+    priority_score: float  # Higher = more urgent
+
+class ContainerProduct(BaseModel):
+    container_id: str
+    container_number: str
+    product_id: str
+    sku: str
+    product_name: str
+    brand: str
+    quantity: int
+    eta: str
+    status: str
+    priority_score: float
+    delivery_urgency: str  # "critical", "high", "medium", "low"
+
+class StockReplanishment(BaseModel):
+    product_id: str
+    sku: str
+    product_name: str
+    brand: str
+    current_stock: int
+    minimum_stock: int
+    units_needed: int
+    containers_in_transit: int
+    units_in_transit: int
+    expected_stock_after_delivery: int
+    priority_score: float
+    status: str
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
