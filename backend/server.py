@@ -1298,6 +1298,366 @@ async def update_min_stock(sku: str, min_stock: int, user: dict = Depends(verify
         "new_min_stock": min_stock
     }
 
+# ==================== PRODUCT MANAGEMENT ENDPOINTS ====================
+
+@api_router.post("/inventory/products")
+async def create_product(product: NewProductRequest, user: dict = Depends(verify_token)):
+    """Add a new product to the inventory"""
+    # Validate SKU doesn't exist
+    existing = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == product.sku), None)
+    if existing:
+        raise HTTPException(status_code=400, detail=f"SKU {product.sku} ya existe")
+    
+    # In production, save to database
+    new_product = {
+        "id": str(uuid.uuid4()),
+        "sku": product.sku,
+        "name": product.name,
+        "brand": product.brand,
+        "category": product.category,
+        "units_per_container": product.units_per_container,
+        "minimum_stock": product.minimum_stock,
+        "maximum_stock": product.maximum_stock,
+        "zone_preference": product.zone_preference,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Save to MongoDB
+    await db.products.insert_one(new_product)
+    
+    return {
+        "success": True,
+        "message": f"Producto {product.name} creado exitosamente",
+        "product": new_product
+    }
+
+@api_router.get("/inventory/products")
+async def get_all_products(user: dict = Depends(verify_token)):
+    """Get all products including custom ones"""
+    # Get products from database
+    db_products = await db.products.find({}, {"_id": 0}).to_list(100)
+    
+    # Combine with default products
+    all_products = []
+    for p in PERNOD_RICARD_PRODUCTS:
+        all_products.append({
+            **p,
+            "id": str(uuid.uuid4()),
+            "minimum_stock": random.randint(500, 2000),
+            "maximum_stock": random.randint(4000, 8000),
+            "zone_preference": get_zone_for_category(p["category"]),
+            "source": "default"
+        })
+    
+    for p in db_products:
+        all_products.append({**p, "source": "custom"})
+    
+    return {
+        "products": all_products,
+        "total": len(all_products),
+        "categories": list(set(p.get("category", "Otros") for p in all_products)),
+        "brands": list(set(p.get("brand", "Sin marca") for p in all_products))
+    }
+
+# ==================== WAREHOUSE POSITIONS ENDPOINTS ====================
+
+@api_router.get("/inventory/{sku}/positions")
+async def get_product_positions(sku: str, user: dict = Depends(verify_token)):
+    """Get warehouse positions for a specific product"""
+    # Find product
+    product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == sku), None)
+    if not product:
+        # Check database
+        db_product = await db.products.find_one({"sku": sku}, {"_id": 0})
+        if db_product:
+            product = db_product
+        else:
+            raise HTTPException(status_code=404, detail=f"Producto {sku} no encontrado")
+    
+    # Generate inventory for this product
+    inventory = generate_cedis_inventory()
+    inv_item = next((i for i in inventory if i.sku == sku), None)
+    
+    if not inv_item:
+        raise HTTPException(status_code=404, detail=f"No hay inventario para {sku}")
+    
+    # Generate positions
+    positions, zone = generate_warehouse_positions(
+        sku=sku,
+        product_name=product["name"],
+        category=product.get("category", "Otros"),
+        total_units=inv_item.current_stock
+    )
+    
+    # Calculate zone distribution
+    zone_dist = {}
+    for pos in positions:
+        if pos.zone not in zone_dist:
+            zone_dist[pos.zone] = {"positions": 0, "units": 0}
+        zone_dist[pos.zone]["positions"] += 1
+        zone_dist[pos.zone]["units"] += pos.current_units
+    
+    # Get recommended door based on most common zone
+    recommended_door = get_recommended_door(zone)
+    
+    return ProductPositions(
+        sku=sku,
+        product_name=product["name"],
+        brand=product.get("brand", "Sin marca"),
+        total_units=inv_item.current_stock,
+        positions=positions,
+        recommended_door=recommended_door,
+        zone_distribution=zone_dist
+    )
+
+@api_router.get("/warehouse/zones")
+async def get_warehouse_zones(user: dict = Depends(verify_token)):
+    """Get warehouse zone configuration"""
+    zones = []
+    for zone_id, config in WAREHOUSE_ZONES.items():
+        zones.append({
+            "zone_id": zone_id,
+            "name": config["name"],
+            "door_range": config["door_range"],
+            "categories": config["categories"],
+            "description": f"Puertas {config['door_range'][0]}-{config['door_range'][1]}"
+        })
+    return {"zones": zones, "total_zones": len(zones)}
+
+@api_router.get("/warehouse/map")
+async def get_warehouse_map(user: dict = Depends(verify_token)):
+    """Get warehouse map with all positions and their status"""
+    inventory = generate_cedis_inventory()
+    
+    warehouse_map = []
+    for zone_id, config in WAREHOUSE_ZONES.items():
+        zone_products = []
+        for inv in inventory:
+            product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == inv.sku), None)
+            if product and product.get("category") in config["categories"]:
+                positions, _ = generate_warehouse_positions(
+                    inv.sku, inv.name, product.get("category", "Otros"), inv.current_stock
+                )
+                zone_products.append({
+                    "sku": inv.sku,
+                    "name": inv.name,
+                    "brand": inv.brand,
+                    "positions_count": len(positions),
+                    "total_units": inv.current_stock,
+                    "stock_status": inv.stock_status
+                })
+        
+        warehouse_map.append({
+            "zone_id": zone_id,
+            "zone_name": config["name"],
+            "doors": config["door_range"],
+            "products": zone_products,
+            "products_count": len(zone_products)
+        })
+    
+    return {"warehouse_map": warehouse_map}
+
+# ==================== APPOINTMENTS ENDPOINTS ====================
+
+@api_router.post("/appointments")
+async def create_appointment(
+    container_number: str,
+    product_sku: str,
+    scheduled_date: str,
+    scheduled_time: str,
+    operator_name: str,
+    operator_license: str,
+    insurance_policy: str,
+    truck_plates: str,
+    notes: Optional[str] = None,
+    user: dict = Depends(verify_token)
+):
+    """Create a delivery appointment"""
+    # Find product
+    product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == product_sku), None)
+    if not product:
+        db_product = await db.products.find_one({"sku": product_sku}, {"_id": 0})
+        if db_product:
+            product = db_product
+        else:
+            raise HTTPException(status_code=404, detail=f"Producto {product_sku} no encontrado")
+    
+    # Calculate recommended door
+    zone = get_zone_for_category(product.get("category", "Otros"))
+    assigned_door = get_recommended_door(zone)
+    
+    appointment = DeliveryAppointment(
+        container_number=container_number,
+        product_sku=product_sku,
+        product_name=product["name"],
+        brand=product.get("brand", "Sin marca"),
+        quantity=product.get("units_per_container", 1500),
+        scheduled_date=scheduled_date,
+        scheduled_time=scheduled_time,
+        assigned_door=assigned_door,
+        operator_name=operator_name,
+        operator_license=operator_license,
+        insurance_policy=insurance_policy,
+        truck_plates=truck_plates,
+        status="scheduled",
+        notes=notes
+    )
+    
+    # Save to MongoDB
+    await db.appointments.insert_one(appointment.model_dump())
+    
+    return {
+        "success": True,
+        "message": "Cita creada exitosamente",
+        "appointment": appointment.model_dump(),
+        "door_assignment": {
+            "assigned_door": assigned_door,
+            "zone": zone,
+            "zone_name": WAREHOUSE_ZONES[zone]["name"],
+            "reason": f"Puerta {assigned_door} asignada por cercanía a {WAREHOUSE_ZONES[zone]['name']}"
+        }
+    }
+
+@api_router.get("/appointments")
+async def get_appointments(
+    date: Optional[str] = None,
+    status: Optional[str] = None,
+    user: dict = Depends(verify_token)
+):
+    """Get delivery appointments"""
+    # Get from database
+    query = {}
+    if date:
+        query["scheduled_date"] = date
+    if status:
+        query["status"] = status
+    
+    db_appointments = await db.appointments.find(query, {"_id": 0}).to_list(100)
+    
+    # If no appointments in DB, generate mock data
+    if not db_appointments:
+        inventory = generate_cedis_inventory()
+        containers = generate_containers_with_products(inventory)
+        
+        mock_appointments = []
+        operators = [
+            {"name": "Juan Carlos Mendoza", "license": "LIC-MX-4521789", "insurance": "POL-SEG-2024-001"},
+            {"name": "Roberto García Luna", "license": "LIC-MX-3287654", "insurance": "POL-SEG-2024-002"},
+            {"name": "Miguel Ángel Torres", "license": "LIC-MX-9876543", "insurance": "POL-SEG-2024-003"},
+            {"name": "Francisco Javier Ruiz", "license": "LIC-MX-1234567", "insurance": "POL-SEG-2024-004"},
+            {"name": "Carlos Eduardo Vega", "license": "LIC-MX-7654321", "insurance": "POL-SEG-2024-005"},
+        ]
+        
+        for i, container in enumerate(containers[:10]):
+            operator = random.choice(operators)
+            product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == container.sku), None)
+            zone = get_zone_for_category(product.get("category", "Otros")) if product else "E"
+            
+            sched_date = datetime.now(timezone.utc) + timedelta(days=random.randint(0, 7))
+            
+            mock_appointments.append({
+                "id": str(uuid.uuid4()),
+                "container_number": container.container_number,
+                "product_sku": container.sku,
+                "product_name": container.product_name,
+                "brand": container.brand,
+                "quantity": container.quantity,
+                "scheduled_date": sched_date.strftime("%Y-%m-%d"),
+                "scheduled_time": f"{random.randint(7, 16):02d}:{random.choice(['00', '30'])}",
+                "assigned_door": get_recommended_door(zone),
+                "operator_name": operator["name"],
+                "operator_license": operator["license"],
+                "insurance_policy": operator["insurance"],
+                "truck_plates": f"{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=3))}-{random.randint(100, 999)}-{''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ', k=1))}",
+                "status": random.choice(["scheduled", "scheduled", "scheduled", "in_progress", "completed"]),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "notes": None
+            })
+        
+        return {
+            "appointments": mock_appointments,
+            "total": len(mock_appointments),
+            "by_status": {
+                "scheduled": len([a for a in mock_appointments if a["status"] == "scheduled"]),
+                "in_progress": len([a for a in mock_appointments if a["status"] == "in_progress"]),
+                "completed": len([a for a in mock_appointments if a["status"] == "completed"])
+            }
+        }
+    
+    return {
+        "appointments": db_appointments,
+        "total": len(db_appointments),
+        "by_status": {
+            "scheduled": len([a for a in db_appointments if a.get("status") == "scheduled"]),
+            "in_progress": len([a for a in db_appointments if a.get("status") == "in_progress"]),
+            "completed": len([a for a in db_appointments if a.get("status") == "completed"])
+        }
+    }
+
+@api_router.put("/appointments/{appointment_id}/status")
+async def update_appointment_status(
+    appointment_id: str,
+    new_status: str,
+    user: dict = Depends(verify_token)
+):
+    """Update appointment status"""
+    valid_statuses = ["scheduled", "in_progress", "completed", "cancelled"]
+    if new_status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Status inválido. Use: {valid_statuses}")
+    
+    result = await db.appointments.update_one(
+        {"id": appointment_id},
+        {"$set": {"status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {
+        "success": True,
+        "message": f"Status actualizado a {new_status}",
+        "appointment_id": appointment_id
+    }
+
+@api_router.get("/appointments/{appointment_id}/door-recommendation")
+async def get_door_recommendation(appointment_id: str, user: dict = Depends(verify_token)):
+    """Get intelligent door recommendation based on product storage location"""
+    # Find appointment
+    appointment = await db.appointments.find_one({"id": appointment_id}, {"_id": 0})
+    
+    if not appointment:
+        # Generate mock recommendation
+        product = random.choice(PERNOD_RICARD_PRODUCTS)
+        zone = get_zone_for_category(product["category"])
+        door = get_recommended_door(zone)
+        
+        return {
+            "recommended_door": door,
+            "zone": zone,
+            "zone_name": WAREHOUSE_ZONES[zone]["name"],
+            "reason": f"Producto {product['name']} se almacena en {WAREHOUSE_ZONES[zone]['name']}",
+            "alternative_doors": WAREHOUSE_ZONES[zone]["door_range"],
+            "distance_score": round(random.uniform(85, 99), 1),
+            "optimization_details": {
+                "storage_zone": zone,
+                "nearest_aisles": [f"{zone}-{i:02d}" for i in range(1, 4)],
+                "estimated_unload_time": f"{random.randint(45, 90)} minutos"
+            }
+        }
+    
+    product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == appointment.get("product_sku")), None)
+    if product:
+        zone = get_zone_for_category(product["category"])
+        door = get_recommended_door(zone)
+        
+        return {
+            "recommended_door": door,
+            "zone": zone,
+            "zone_name": WAREHOUSE_ZONES[zone]["name"],
+            "reason": f"Producto {product['name']} se almacena en {WAREHOUSE_ZONES[zone]['name']}",
+            "alternative_doors": WAREHOUSE_ZONES[zone]["door_range"],
+            "distance_score": round(random.uniform(85, 99), 1)
+        }
+    
+    return {"recommended_door": random.randint(1, 8), "zone": "E", "reason": "Zona por defecto"}
+
 @api_router.get("/containers/locations/all", response_model=List[ContainerLocation])
 async def get_all_container_locations(user: dict = Depends(verify_token)):
     """Get all container locations for map display"""
