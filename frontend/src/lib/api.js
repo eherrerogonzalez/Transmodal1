@@ -36,6 +36,7 @@ export const getDashboard = () => api.get('/dashboard');
 // Containers
 export const getContainers = () => api.get('/containers');
 export const getContainer = (id) => api.get(`/containers/${id}`);
+export const getContainerTracking = (id) => api.get(`/containers/${id}/tracking`);
 export const getContainerLocations = () => api.get('/containers/locations/all');
 
 // Orders
