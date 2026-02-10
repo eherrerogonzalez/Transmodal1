@@ -2100,6 +2100,185 @@ async def get_restock_timeline(days: int = 30, user: dict = Depends(verify_token
         "total_deliveries_expected": sum(len(t["deliveries_expected"]) for t in timeline)
     }
 
+# ==================== SUPPLY CHAIN PLANNING (INTEGRATED) ====================
+
+@api_router.get("/planning/supply-chain")
+async def get_supply_chain_plan(user: dict = Depends(verify_token)):
+    """
+    Obtiene la planificación integrada de cadena de suministro.
+    ORIGEN → INBOUND → CEDIS → DISTRIBUCIÓN → CLIENTE FINAL
+    
+    El objetivo es garantizar que el cliente final NUNCA se quede sin producto.
+    """
+    plans = generate_supply_chain_plan()
+    
+    # Estadísticas
+    emergency_count = len([p for p in plans if p.action_required == "emergency"])
+    order_now_count = len([p for p in plans if p.action_required in ["order_now", "emergency"]])
+    distribute_count = len([p for p in plans if p.action_required == "distribute"])
+    
+    total_critical_locations = sum(p.critical_end_client_locations for p in plans)
+    total_deficit = sum(p.cedis_deficit for p in plans)
+    
+    return {
+        "plans": [p.model_dump() for p in plans],
+        "summary": {
+            "total_skus_analyzed": len(plans),
+            "emergency_actions": emergency_count,
+            "orders_needed": order_now_count,
+            "distributions_needed": distribute_count,
+            "total_critical_end_locations": total_critical_locations,
+            "total_cedis_deficit": total_deficit
+        },
+        "alerts": {
+            "has_emergencies": emergency_count > 0,
+            "message": f"🚨 {emergency_count} productos requieren acción de EMERGENCIA" if emergency_count > 0 
+                      else f"⚠️ {order_now_count} productos necesitan pedido a origen" if order_now_count > 0
+                      else "✅ Cadena de suministro estable"
+        }
+    }
+
+@api_router.get("/planning/supply-chain/{sku}")
+async def get_sku_supply_chain_plan(sku: str, user: dict = Depends(verify_token)):
+    """Obtiene el plan de cadena de suministro para un SKU específico"""
+    plans = generate_supply_chain_plan()
+    plan = next((p for p in plans if p.sku == sku), None)
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail=f"SKU {sku} no encontrado")
+    
+    # Obtener detalle de ubicaciones de clientes finales que necesitan este producto
+    all_end_client_inventory = generate_end_client_inventory()
+    locations_needing = [
+        {
+            "client_name": item.client_name,
+            "store_code": item.store_code,
+            "store_name": item.store_name,
+            "current_stock": item.current_stock,
+            "days_of_stock": item.days_of_stock,
+            "suggested_quantity": item.suggested_quantity,
+            "estimated_stockout": item.estimated_stockout_date
+        }
+        for item in all_end_client_inventory 
+        if item.sku == sku and item.needs_restock
+    ]
+    
+    # Ordenar por días de stock (más urgente primero)
+    locations_needing.sort(key=lambda x: x["days_of_stock"])
+    
+    return {
+        "plan": plan.model_dump(),
+        "end_client_locations_needing": locations_needing,
+        "locations_count": len(locations_needing)
+    }
+
+@api_router.get("/planning/distribution-orders")
+async def get_distribution_orders(user: dict = Depends(verify_token)):
+    """
+    Obtiene las órdenes de distribución pendientes.
+    Estas son entregas que deben salir de CEDIS hacia clientes finales.
+    """
+    orders = generate_distribution_orders()
+    
+    # Agrupar por prioridad
+    by_priority = {"critical": [], "high": [], "medium": [], "low": []}
+    for order in orders:
+        by_priority[order.priority].append(order.model_dump())
+    
+    # Agrupar por cliente
+    by_client = {}
+    for order in orders:
+        if order.client_name not in by_client:
+            by_client[order.client_name] = {"orders": 0, "units": 0}
+        by_client[order.client_name]["orders"] += 1
+        by_client[order.client_name]["units"] += order.quantity
+    
+    return {
+        "orders": [o.model_dump() for o in orders],
+        "by_priority": by_priority,
+        "by_client": by_client,
+        "summary": {
+            "total_orders": len(orders),
+            "critical_orders": len(by_priority["critical"]),
+            "total_units": sum(o.quantity for o in orders),
+            "clients_to_serve": len(by_client)
+        }
+    }
+
+@api_router.get("/planning/action-items")
+async def get_action_items(user: dict = Depends(verify_token)):
+    """
+    Obtiene una lista priorizada de acciones a tomar:
+    1. Pedidos a origen que deben hacerse hoy
+    2. Distribuciones que deben salir de CEDIS
+    3. Alertas de desabasto inminente en clientes finales
+    """
+    plans = generate_supply_chain_plan()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    actions = {
+        "origin_orders_today": [],
+        "distributions_urgent": [],
+        "end_client_alerts": []
+    }
+    
+    for plan in plans:
+        # Pedidos a origen para hoy
+        if plan.cedis_reorder_date and plan.cedis_reorder_date <= today:
+            if plan.action_required in ["emergency", "order_now"]:
+                actions["origin_orders_today"].append({
+                    "sku": plan.sku,
+                    "product_name": plan.product_name,
+                    "brand": plan.brand,
+                    "action": plan.action_required,
+                    "description": plan.action_description,
+                    "origin": plan.suggested_origin,
+                    "deficit": plan.cedis_deficit,
+                    "expected_arrival": plan.expected_inbound_date,
+                    "priority": plan.priority_score
+                })
+        
+        # Distribuciones urgentes
+        if plan.distribution_ship_by_date and plan.distribution_ship_by_date <= today:
+            if plan.can_fulfill_from_cedis and plan.end_clients_needing_restock > 0:
+                actions["distributions_urgent"].append({
+                    "sku": plan.sku,
+                    "product_name": plan.product_name,
+                    "brand": plan.brand,
+                    "locations_to_serve": plan.end_clients_needing_restock,
+                    "units_needed": plan.total_end_client_demand,
+                    "ship_by": plan.distribution_ship_by_date,
+                    "priority": plan.priority_score
+                })
+        
+        # Alertas de desabasto
+        if plan.critical_end_client_locations > 0:
+            actions["end_client_alerts"].append({
+                "sku": plan.sku,
+                "product_name": plan.product_name,
+                "brand": plan.brand,
+                "critical_locations": plan.critical_end_client_locations,
+                "earliest_stockout": plan.earliest_end_client_stockout,
+                "can_fulfill": plan.can_fulfill_from_cedis,
+                "action": plan.action_description,
+                "priority": plan.priority_score
+            })
+    
+    # Ordenar cada lista por prioridad
+    for key in actions:
+        actions[key].sort(key=lambda x: x["priority"], reverse=True)
+    
+    return {
+        "actions": actions,
+        "summary": {
+            "orders_to_place_today": len(actions["origin_orders_today"]),
+            "urgent_distributions": len(actions["distributions_urgent"]),
+            "end_client_alerts": len(actions["end_client_alerts"]),
+            "requires_immediate_attention": len(actions["origin_orders_today"]) > 0 or len(actions["end_client_alerts"]) > 0
+        },
+        "generated_at": today
+    }
+
 # ==================== END CLIENT INVENTORY (WALMART, ETC.) ====================
 
 @api_router.get("/inventory/end-clients")
