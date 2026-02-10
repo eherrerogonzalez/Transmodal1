@@ -69,5 +69,28 @@ export const getInventory = () => api.get('/inventory');
 export const getContainersByProduct = () => api.get('/inventory/containers');
 export const getRestockPlan = (doors = 8) => api.get(`/inventory/restock-plan?doors=${doors}`);
 export const updateMinStock = (sku, minStock) => api.put(`/inventory/${sku}/min-stock`, { min_stock: minStock });
+export const getProductPositions = (sku) => api.get(`/inventory/${sku}/positions`);
+export const getAllProducts = () => api.get('/inventory/products');
+export const createProduct = (data) => api.post('/inventory/products', data);
+
+// Warehouse
+export const getWarehouseZones = () => api.get('/warehouse/zones');
+export const getWarehouseMap = () => api.get('/warehouse/map');
+
+// Appointments
+export const getAppointments = (date, status) => {
+  let url = '/appointments';
+  const params = [];
+  if (date) params.push(`date=${date}`);
+  if (status) params.push(`status=${status}`);
+  if (params.length) url += '?' + params.join('&');
+  return api.get(url);
+};
+export const createAppointment = (data) => {
+  const params = new URLSearchParams(data).toString();
+  return api.post(`/appointments?${params}`);
+};
+export const updateAppointmentStatus = (id, status) => api.put(`/appointments/${id}/status?new_status=${status}`);
+export const getDoorRecommendation = (appointmentId) => api.get(`/appointments/${appointmentId}/door-recommendation`);
 
 export default api;
