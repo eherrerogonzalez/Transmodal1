@@ -562,6 +562,189 @@ WAREHOUSE_ZONES = {
     "E": {"name": "Zona E - Ginebras y Otros", "door_range": [7, 8], "categories": ["Gin", "Otros"]},
 }
 
+# ==================== TRANSIT ROUTES CONFIGURATION ====================
+
+TRANSIT_ROUTES = [
+    {"origin": "Shanghai", "destination": "Manzanillo", "mode": "maritime", "transit_days": 25, "port_days": 3, "customs_days": 4, "inland_days": 2, "cost": 4500},
+    {"origin": "Rotterdam", "destination": "Veracruz", "mode": "maritime", "transit_days": 18, "port_days": 2, "customs_days": 3, "inland_days": 2, "cost": 3800},
+    {"origin": "Hamburg", "destination": "Veracruz", "mode": "maritime", "transit_days": 20, "port_days": 2, "customs_days": 3, "inland_days": 2, "cost": 4000},
+    {"origin": "Los Angeles", "destination": "CDMX", "mode": "intermodal_train", "transit_days": 8, "port_days": 1, "customs_days": 2, "inland_days": 3, "cost": 2800},
+    {"origin": "Singapore", "destination": "Lazaro Cardenas", "mode": "maritime", "transit_days": 28, "port_days": 3, "customs_days": 4, "inland_days": 2, "cost": 4800},
+    {"origin": "Miami", "destination": "Veracruz", "mode": "maritime", "transit_days": 5, "port_days": 1, "customs_days": 2, "inland_days": 1, "cost": 2200},
+]
+
+def get_transit_route(origin: str = None):
+    """Get transit route info - random if no origin specified"""
+    if origin:
+        route = next((r for r in TRANSIT_ROUTES if r["origin"] == origin), None)
+        if route:
+            total_lead_time = route["transit_days"] + route["port_days"] + route["customs_days"] + route["inland_days"]
+            return {**route, "total_lead_time": total_lead_time}
+    route = random.choice(TRANSIT_ROUTES)
+    total_lead_time = route["transit_days"] + route["port_days"] + route["customs_days"] + route["inland_days"]
+    return {**route, "total_lead_time": total_lead_time}
+
+# ==================== END CLIENT (WALMART, COSTCO, ETC.) CONFIGURATION ====================
+
+END_CLIENTS = [
+    {"name": "Walmart", "code_prefix": "WMT", "regions": ["Norte", "Centro", "Sur", "Occidente"], "stores_per_region": 8},
+    {"name": "Costco", "code_prefix": "CST", "regions": ["Norte", "Centro", "Occidente"], "stores_per_region": 4},
+    {"name": "HEB", "code_prefix": "HEB", "regions": ["Norte", "Noreste"], "stores_per_region": 6},
+    {"name": "Soriana", "code_prefix": "SOR", "regions": ["Norte", "Centro", "Sur"], "stores_per_region": 5},
+    {"name": "La Comer", "code_prefix": "LCM", "regions": ["Centro"], "stores_per_region": 4},
+    {"name": "Chedraui", "code_prefix": "CHD", "regions": ["Sur", "Centro", "Golfo"], "stores_per_region": 5},
+]
+
+END_CLIENT_CITIES = {
+    "Norte": ["Monterrey", "Saltillo", "Torreón", "Chihuahua"],
+    "Noreste": ["Monterrey", "Reynosa", "Matamoros", "Nuevo Laredo"],
+    "Centro": ["CDMX", "Toluca", "Querétaro", "Puebla"],
+    "Sur": ["Oaxaca", "Tuxtla", "Mérida", "Villahermosa"],
+    "Occidente": ["Guadalajara", "León", "Aguascalientes", "Morelia"],
+    "Golfo": ["Veracruz", "Coatzacoalcos", "Tampico", "Xalapa"],
+}
+
+def generate_end_client_inventory(client_name: str = None):
+    """Generate inventory data for end clients (retailers)"""
+    inventory_data = []
+    
+    clients_to_process = END_CLIENTS if not client_name else [c for c in END_CLIENTS if c["name"] == client_name]
+    
+    for client in clients_to_process:
+        location_counter = 1
+        for region in client["regions"]:
+            cities = END_CLIENT_CITIES.get(region, ["Ciudad"])
+            for _ in range(client["stores_per_region"]):
+                city = random.choice(cities)
+                store_code = f"{client['code_prefix']}-{location_counter:03d}"
+                store_name = f"{client['name']} {city} {location_counter}"
+                
+                # Generate inventory for selected products at this location
+                products_at_store = random.sample(PERNOD_RICARD_PRODUCTS, min(8, len(PERNOD_RICARD_PRODUCTS)))
+                
+                for product in products_at_store:
+                    # Simulate different stock levels at retail
+                    min_stock = random.randint(20, 100)
+                    current_stock = random.randint(0, int(min_stock * 2.5))
+                    sell_through = round(random.uniform(2, 15), 1)  # Units per day
+                    days_of_stock = round(current_stock / sell_through, 1) if sell_through > 0 else 999
+                    reorder_point = int(min_stock * 1.2)
+                    
+                    needs_restock = current_stock < reorder_point
+                    
+                    # Calculate estimated stockout and restock dates
+                    stockout_date = None
+                    if days_of_stock < 999 and current_stock > 0:
+                        stockout_date = (datetime.now(timezone.utc) + timedelta(days=days_of_stock)).strftime("%Y-%m-%d")
+                    
+                    # Suggested restock: 3 days before stockout or now if critical
+                    restock_buffer = max(0, days_of_stock - 3)
+                    suggested_restock = (datetime.now(timezone.utc) + timedelta(days=restock_buffer)).strftime("%Y-%m-%d")
+                    
+                    # Priority score based on days of stock
+                    if days_of_stock <= 3:
+                        priority = 100
+                    elif days_of_stock <= 7:
+                        priority = 80
+                    elif days_of_stock <= 14:
+                        priority = 50
+                    else:
+                        priority = 20
+                    
+                    suggested_qty = max(0, reorder_point - current_stock + int(sell_through * 14))  # 2 weeks supply
+                    
+                    inventory_data.append(EndClientInventory(
+                        location_id=str(uuid.uuid4()),
+                        client_name=client["name"],
+                        store_code=store_code,
+                        store_name=store_name,
+                        sku=product["sku"],
+                        product_name=product["name"],
+                        brand=product.get("brand", "Sin marca"),
+                        current_stock=current_stock,
+                        sell_through_rate=sell_through,
+                        days_of_stock=days_of_stock,
+                        minimum_stock=min_stock,
+                        reorder_point=reorder_point,
+                        needs_restock=needs_restock,
+                        estimated_stockout_date=stockout_date,
+                        suggested_restock_date=suggested_restock,
+                        suggested_quantity=suggested_qty,
+                        priority_score=priority
+                    ))
+                
+                location_counter += 1
+    
+    return inventory_data
+
+def generate_restock_predictions(inventory: List[InventoryItem]):
+    """Generate predictions for when to order from origin based on transit time"""
+    predictions = []
+    
+    for item in inventory:
+        # Calculate daily consumption based on days_of_stock and current_stock
+        daily_consumption = item.current_stock / item.days_of_stock if item.days_of_stock > 0 and item.days_of_stock < 999 else 50
+        
+        # Get route info for this product
+        route = get_transit_route()
+        lead_time = route["total_lead_time"]
+        
+        # Calculate when stock hits minimum
+        days_until_min = (item.current_stock - item.minimum_stock) / daily_consumption if daily_consumption > 0 else 999
+        
+        # Reorder point: must order lead_time days before hitting minimum
+        days_until_reorder = max(0, days_until_min - lead_time)
+        
+        # Determine urgency
+        if days_until_reorder <= 0:
+            urgency = "immediate"
+        elif days_until_reorder <= 7:
+            urgency = "soon"
+        elif days_until_reorder <= 14:
+            urgency = "scheduled"
+        else:
+            urgency = "ok"
+        
+        reorder_date = datetime.now(timezone.utc) + timedelta(days=days_until_reorder)
+        delivery_date = reorder_date + timedelta(days=lead_time)
+        
+        product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == item.sku), None)
+        recommended_qty = product["units_per_container"] if product else 1500
+        
+        predictions.append(RestockPrediction(
+            product_id=item.product_id,
+            sku=item.sku,
+            product_name=item.name,
+            brand=item.brand,
+            current_stock=item.current_stock,
+            minimum_stock=item.minimum_stock,
+            daily_consumption_rate=round(daily_consumption, 1),
+            days_until_stockout=round(days_until_min, 1),
+            reorder_point_date=reorder_date.strftime("%Y-%m-%d"),
+            expected_delivery_date=delivery_date.strftime("%Y-%m-%d"),
+            transit_time_days=lead_time,
+            recommended_quantity=recommended_qty,
+            urgency_level=urgency,
+            suggested_origin=route["origin"],
+            route_details={
+                "origin": route["origin"],
+                "destination": route["destination"],
+                "transport_mode": route["mode"],
+                "transit_days": route["transit_days"],
+                "port_handling_days": route["port_days"],
+                "customs_days": route["customs_days"],
+                "inland_transport_days": route["inland_days"],
+                "total_lead_time": lead_time,
+                "estimated_cost": route["cost"]
+            }
+        ))
+    
+    # Sort by urgency and days until reorder
+    urgency_order = {"immediate": 0, "soon": 1, "scheduled": 2, "ok": 3}
+    predictions.sort(key=lambda x: (urgency_order.get(x.urgency_level, 4), x.days_until_stockout))
+    
+    return predictions
+
 def get_zone_for_category(category: str) -> str:
     """Get warehouse zone for a product category"""
     for zone, config in WAREHOUSE_ZONES.items():
