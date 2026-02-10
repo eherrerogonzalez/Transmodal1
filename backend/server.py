@@ -236,6 +236,75 @@ class NewProductRequest(BaseModel):
     maximum_stock: int
     zone_preference: str  # Preferred warehouse zone
 
+# ==================== TRANSIT TIME & RESTOCK PLANNING MODELS ====================
+
+class TransitRoute(BaseModel):
+    route_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    origin: str
+    destination: str
+    transport_mode: str  # maritime, intermodal_train, truck
+    transit_days: int
+    port_handling_days: int = 2
+    customs_days: int = 3
+    inland_transport_days: int = 1
+    total_lead_time_days: int
+    cost_per_container: float
+    
+class RestockPrediction(BaseModel):
+    product_id: str
+    sku: str
+    product_name: str
+    brand: str
+    current_stock: int
+    minimum_stock: int
+    daily_consumption_rate: float
+    days_until_stockout: float
+    reorder_point_date: str  # When to place order at origin
+    expected_delivery_date: str  # When container arrives at CEDIS
+    transit_time_days: int
+    recommended_quantity: int
+    urgency_level: str  # "immediate", "soon", "scheduled", "ok"
+    suggested_origin: str
+    route_details: dict
+
+# ==================== CLIENT INVENTORY (WALMART, ETC.) MODELS ====================
+
+class EndClientLocation(BaseModel):
+    location_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    client_name: str  # e.g., "Walmart", "Costco", "HEB"
+    store_code: str
+    store_name: str
+    city: str
+    state: str
+    region: str
+
+class EndClientInventory(BaseModel):
+    location_id: str
+    client_name: str
+    store_code: str
+    store_name: str
+    sku: str
+    product_name: str
+    brand: str
+    current_stock: int
+    sell_through_rate: float  # Units sold per day
+    days_of_stock: float
+    minimum_stock: int
+    reorder_point: int
+    needs_restock: bool
+    estimated_stockout_date: Optional[str]
+    suggested_restock_date: str
+    suggested_quantity: int
+    priority_score: float
+
+class EndClientSummary(BaseModel):
+    client_name: str
+    total_locations: int
+    products_tracked: int
+    locations_needing_restock: int
+    critical_stockouts: int
+    total_units_to_ship: int
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
