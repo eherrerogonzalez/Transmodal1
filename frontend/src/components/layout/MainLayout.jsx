@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Toaster } from '../ui/sonner';
+import Chatbot from '../Chatbot';
 
 export const MainLayout = () => {
   const { user, loading } = useAuth();
@@ -31,6 +32,7 @@ export const MainLayout = () => {
         </div>
       </main>
       <Toaster position="top-right" />
+      <Chatbot />
     </div>
   );
 };
