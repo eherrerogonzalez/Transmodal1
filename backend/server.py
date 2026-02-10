@@ -422,6 +422,112 @@ class OrderCreate(BaseModel):
     cargo_description: str
     weight: float
 
+# ==================== NEW: CONTAINER PRODUCTS & ORDER CONTAINERS ====================
+
+class ContainerProductItem(BaseModel):
+    """Producto dentro de un contenedor"""
+    sku: str
+    product_name: str
+    brand: str
+    quantity: int
+    unit_price: Optional[float] = None
+
+class ContainerInOrder(BaseModel):
+    """Contenedor dentro de una orden (una orden puede tener múltiples contenedores)"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    container_number: str
+    size: str  # 20ft, 40ft, 40ft HC
+    type: str  # dry, reefer, flat rack
+    seal_number: Optional[str] = None
+    weight: float = 0.0
+    products: List[ContainerProductItem] = []
+
+class OrderCreateNew(BaseModel):
+    """Crear una nueva orden con múltiples contenedores"""
+    origin: str
+    destination: str
+    bl_number: Optional[str] = None
+    containers: List[ContainerInOrder] = []
+    total_weight: float = 0.0
+    incoterm: str = "FOB"
+    notes: Optional[str] = None
+
+# ==================== NEW: AI DOCUMENT EXTRACTION ====================
+
+class DocumentExtractionResult(BaseModel):
+    """Resultado de extracción AI de documentos"""
+    bl_number: Optional[str] = None
+    shipper: Optional[str] = None
+    consignee: Optional[str] = None
+    origin_port: Optional[str] = None
+    destination_port: Optional[str] = None
+    vessel_name: Optional[str] = None
+    voyage_number: Optional[str] = None
+    containers: List[Dict[str, Any]] = []
+    total_weight: Optional[float] = None
+    total_packages: Optional[int] = None
+    cargo_description: Optional[str] = None
+    incoterm: Optional[str] = None
+    confidence_score: float = 0.0
+
+# ==================== NEW: PENDING ORDERS (CONFIRMATIONS) ====================
+
+class PendingOriginOrder(BaseModel):
+    """Orden pendiente de confirmar para pedir a origen"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku: str
+    product_name: str
+    brand: str
+    suggested_quantity: int
+    suggested_origin: str
+    route_details: Dict[str, Any]
+    lead_time_days: int
+    expected_arrival: str
+    reason: str
+    cedis_current_stock: int
+    cedis_deficit: int
+    critical_end_locations: int
+    status: str = "pending"  # pending, confirmed, rejected
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    confirmed_at: Optional[str] = None
+    confirmed_quantity: Optional[int] = None
+
+class PendingDistributionOrder(BaseModel):
+    """Orden pendiente de confirmar para distribución a cliente final"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku: str
+    product_name: str
+    brand: str
+    client_name: str
+    store_code: str
+    store_name: str
+    region: str
+    suggested_quantity: int
+    distribution_time_days: int
+    ship_by_date: str
+    expected_arrival: str
+    days_of_stock_at_store: float
+    priority: str
+    status: str = "pending"  # pending, confirmed, rejected
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    confirmed_at: Optional[str] = None
+    confirmed_quantity: Optional[int] = None
+
+# ==================== NEW: CHATBOT ====================
+
+class ChatMessage(BaseModel):
+    role: str  # user, assistant
+    content: str
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: str
+
 class Additional(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
