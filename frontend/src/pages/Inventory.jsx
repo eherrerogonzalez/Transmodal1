@@ -3,7 +3,8 @@ import {
   getInventory, getContainersByProduct, getRestockPlan, 
   getProductPositions, createProduct, getWarehouseZones,
   getAppointments, createAppointment, getRestockPredictions,
-  getRestockTimeline, getEndClientsOverview, getEndClientInventory
+  getRestockTimeline, getEndClientsOverview, getEndClientInventory,
+  getSupplyChainPlan, getDistributionOrders, getActionItems
 } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -40,7 +41,7 @@ import {
   Package, AlertTriangle, CheckCircle, Clock, Warehouse, Search, Filter, 
   Calendar, Truck, ArrowRight, Wine, Box, Plus, MapPin, Grid3X3,
   DoorOpen, User, FileText, Shield, Car, Ship, Timer, Store, Building2,
-  TrendingDown, Route, CalendarClock
+  TrendingDown, Route, CalendarClock, Zap, AlertCircle, Send, ArrowDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,15 +54,12 @@ const stockStatusConfig = {
   excess: { color: 'bg-blue-100 text-blue-700 border-blue-200', label: 'Exceso' },
 };
 
-const urgencyConfig = {
-  critical: { color: 'bg-red-500', text: 'text-red-700', label: 'Crítica', bgLight: 'bg-red-50 border-red-200' },
-  high: { color: 'bg-amber-500', text: 'text-amber-700', label: 'Alta', bgLight: 'bg-amber-50 border-amber-200' },
-  medium: { color: 'bg-blue-500', text: 'text-blue-700', label: 'Media', bgLight: 'bg-blue-50 border-blue-200' },
-  low: { color: 'bg-slate-400', text: 'text-slate-600', label: 'Baja', bgLight: 'bg-slate-50 border-slate-200' },
-  immediate: { color: 'bg-red-600', text: 'text-red-700', label: 'Inmediata', bgLight: 'bg-red-50 border-red-300' },
-  soon: { color: 'bg-amber-500', text: 'text-amber-700', label: 'Pronto', bgLight: 'bg-amber-50 border-amber-200' },
-  scheduled: { color: 'bg-blue-500', text: 'text-blue-700', label: 'Programada', bgLight: 'bg-blue-50 border-blue-200' },
-  ok: { color: 'bg-emerald-500', text: 'text-emerald-700', label: 'OK', bgLight: 'bg-emerald-50 border-emerald-200' },
+const actionConfig = {
+  emergency: { color: 'bg-red-600', text: 'text-white', label: '🚨 EMERGENCIA', bgLight: 'bg-red-100 border-red-300' },
+  order_now: { color: 'bg-orange-500', text: 'text-white', label: '📦 PEDIR AHORA', bgLight: 'bg-orange-100 border-orange-300' },
+  distribute: { color: 'bg-blue-500', text: 'text-white', label: '🚚 DISTRIBUIR', bgLight: 'bg-blue-100 border-blue-300' },
+  order_soon: { color: 'bg-amber-400', text: 'text-amber-900', label: '📋 PROGRAMAR', bgLight: 'bg-amber-100 border-amber-300' },
+  none: { color: 'bg-emerald-500', text: 'text-white', label: '✅ OK', bgLight: 'bg-emerald-50 border-emerald-200' },
 };
 
 const brandColors = {
@@ -101,29 +99,30 @@ const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(null);
   const [containers, setContainers] = useState(null);
-  const [restockPlan, setRestockPlan] = useState(null);
   const [appointments, setAppointments] = useState(null);
   const [zones, setZones] = useState(null);
-  const [restockPredictions, setRestockPredictions] = useState(null);
-  const [restockTimeline, setRestockTimeline] = useState(null);
+  const [supplyChainPlan, setSupplyChainPlan] = useState(null);
+  const [distributionOrders, setDistributionOrders] = useState(null);
+  const [actionItems, setActionItems] = useState(null);
   const [endClientsOverview, setEndClientsOverview] = useState(null);
   const [selectedClientInventory, setSelectedClientInventory] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [brandFilter, setBrandFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [warehouseDoors, setWarehouseDoors] = useState(8);
   
   // Modals
   const [showPositionsModal, setShowPositionsModal] = useState(false);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showClientDetailModal, setShowClientDetailModal] = useState(false);
+  const [showSkuDetailModal, setShowSkuDetailModal] = useState(false);
   
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productPositions, setProductPositions] = useState(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [clientDetailLoading, setClientDetailLoading] = useState(false);
+  const [selectedSkuPlan, setSelectedSkuPlan] = useState(null);
   
   // New product form
   const [newProduct, setNewProduct] = useState({
@@ -139,28 +138,28 @@ const Inventory = () => {
 
   useEffect(() => {
     fetchData();
-  }, [warehouseDoors]);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, contRes, planRes, apptRes, zonesRes, predictRes, timelineRes, clientsRes] = await Promise.all([
+      const [invRes, contRes, apptRes, zonesRes, scPlanRes, distRes, actionsRes, clientsRes] = await Promise.all([
         getInventory(),
         getContainersByProduct(),
-        getRestockPlan(warehouseDoors),
         getAppointments(),
         getWarehouseZones(),
-        getRestockPredictions(),
-        getRestockTimeline(30),
+        getSupplyChainPlan(),
+        getDistributionOrders(),
+        getActionItems(),
         getEndClientsOverview()
       ]);
       setInventory(invRes.data);
       setContainers(contRes.data);
-      setRestockPlan(planRes.data);
       setAppointments(apptRes.data);
       setZones(zonesRes.data);
-      setRestockPredictions(predictRes.data);
-      setRestockTimeline(timelineRes.data);
+      setSupplyChainPlan(scPlanRes.data);
+      setDistributionOrders(distRes.data);
+      setActionItems(actionsRes.data);
       setEndClientsOverview(clientsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -199,6 +198,11 @@ const Inventory = () => {
     } finally {
       setClientDetailLoading(false);
     }
+  };
+
+  const handleViewSkuDetail = (plan) => {
+    setSelectedSkuPlan(plan);
+    setShowSkuDetailModal(true);
   };
 
   const handleCreateProduct = async () => {
@@ -275,8 +279,8 @@ const Inventory = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario & Planificación</h1>
-          <p className="text-slate-500 mt-1">Gestión de stock, tiempos de tránsito y clientes finales</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Cadena de Suministro</h1>
+          <p className="text-slate-500 mt-1">Origen → CEDIS → Cliente Final | Garantizar disponibilidad continua</p>
         </div>
         
         <div className="flex gap-2">
@@ -291,230 +295,365 @@ const Inventory = () => {
         </div>
       </div>
 
+      {/* Alert Banner */}
+      {actionItems?.summary?.requires_immediate_attention && (
+        <Card className="border-red-300 bg-red-50 rounded-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+              <div>
+                <p className="font-semibold text-red-800">⚠️ Atención Requerida</p>
+                <p className="text-sm text-red-600">
+                  {actionItems.summary.orders_to_place_today} pedidos a origen hoy • 
+                  {actionItems.summary.end_client_alerts} alertas de clientes finales
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <Card className="border-red-200 bg-red-50 rounded-sm">
+        <Card className={`rounded-sm ${supplyChainPlan?.summary?.emergency_actions > 0 ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
           <CardContent className="p-4">
-            <p className="text-xs text-red-600 uppercase tracking-wider font-medium">Crítico CEDIS</p>
-            <p className="text-2xl font-bold text-red-700">{inventory?.summary?.critical || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-amber-200 bg-amber-50 rounded-sm">
-          <CardContent className="p-4">
-            <p className="text-xs text-amber-600 uppercase tracking-wider font-medium">Pedir Inmediato</p>
-            <p className="text-2xl font-bold text-amber-700">{restockPredictions?.summary?.immediate_action_required || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200 bg-blue-50 rounded-sm">
-          <CardContent className="p-4">
-            <p className="text-xs text-blue-600 uppercase tracking-wider font-medium">En Tránsito</p>
-            <p className="text-2xl font-bold text-blue-700">{containers?.summary?.total_containers || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-purple-200 bg-purple-50 rounded-sm">
-          <CardContent className="p-4">
-            <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Clientes Finales</p>
-            <p className="text-2xl font-bold text-purple-700">{endClientsOverview?.total_clients || 0}</p>
+            <p className="text-xs text-red-600 uppercase tracking-wider font-medium">🚨 Emergencias</p>
+            <p className="text-2xl font-bold text-red-700">{supplyChainPlan?.summary?.emergency_actions || 0}</p>
           </CardContent>
         </Card>
         <Card className="border-orange-200 bg-orange-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-orange-600 uppercase tracking-wider font-medium">Críticos Retail</p>
-            <p className="text-2xl font-bold text-orange-700">{endClientsOverview?.total_critical_items || 0}</p>
+            <p className="text-xs text-orange-600 uppercase tracking-wider font-medium">📦 Pedir a Origen</p>
+            <p className="text-2xl font-bold text-orange-700">{supplyChainPlan?.summary?.orders_needed || 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-emerald-200 bg-emerald-50 rounded-sm">
+        <Card className="border-blue-200 bg-blue-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-emerald-600 uppercase tracking-wider font-medium">Lead Time Prom.</p>
-            <p className="text-2xl font-bold text-emerald-700">{restockPredictions?.summary?.avg_lead_time_days || 0}d</p>
+            <p className="text-xs text-blue-600 uppercase tracking-wider font-medium">🚚 Distribuir</p>
+            <p className="text-2xl font-bold text-blue-700">{distributionOrders?.summary?.critical_orders || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-purple-200 bg-purple-50 rounded-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">🏪 Clientes</p>
+            <p className="text-2xl font-bold text-purple-700">{endClientsOverview?.total_clients || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-amber-200 bg-amber-50 rounded-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-amber-600 uppercase tracking-wider font-medium">⚠️ Loc. Críticas</p>
+            <p className="text-2xl font-bold text-amber-700">{supplyChainPlan?.summary?.total_critical_end_locations || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 bg-slate-50 rounded-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-slate-600 uppercase tracking-wider font-medium">📊 SKUs</p>
+            <p className="text-2xl font-bold text-slate-700">{supplyChainPlan?.summary?.total_skus_analyzed || 0}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="transit-planning" className="space-y-6">
+      <Tabs defaultValue="supply-chain" className="space-y-6">
         <TabsList className="bg-slate-100 rounded-sm flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="transit-planning" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-transit-planning">
-            <Ship className="w-4 h-4 mr-2" />Planif. Tránsito
+          <TabsTrigger value="supply-chain" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-supply-chain">
+            <Zap className="w-4 h-4 mr-2" />Plan Integral
+          </TabsTrigger>
+          <TabsTrigger value="distribution" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-distribution">
+            <Send className="w-4 h-4 mr-2" />Distribución
           </TabsTrigger>
           <TabsTrigger value="end-clients" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-end-clients">
             <Store className="w-4 h-4 mr-2" />Clientes Finales
           </TabsTrigger>
           <TabsTrigger value="inventory" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-inventory">
-            <Box className="w-4 h-4 mr-2" />Inventario CEDIS
+            <Box className="w-4 h-4 mr-2" />CEDIS
           </TabsTrigger>
           <TabsTrigger value="appointments" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-appointments">
             <Calendar className="w-4 h-4 mr-2" />Citas
           </TabsTrigger>
-          <TabsTrigger value="containers" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-containers">
-            <Package className="w-4 h-4 mr-2" />En Tránsito
-          </TabsTrigger>
         </TabsList>
 
-        {/* Transit Planning Tab - NEW */}
-        <TabsContent value="transit-planning" className="space-y-6" data-testid="transit-planning-content">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Restock Predictions */}
+        {/* Supply Chain Plan Tab - NEW & IMPROVED */}
+        <TabsContent value="supply-chain" className="space-y-6" data-testid="supply-chain-content">
+          {/* Flow Diagram */}
+          <Card className="border-slate-200 rounded-sm bg-gradient-to-r from-slate-50 to-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-center gap-4 text-sm">
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-sm shadow-sm">
+                  <Ship className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium">ORIGEN</span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-sm shadow-sm">
+                  <ArrowDown className="w-5 h-5 text-amber-600" />
+                  <span className="font-medium">INBOUND</span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-sm shadow-sm border-2 border-blue-300">
+                  <Warehouse className="w-5 h-5 text-blue-600" />
+                  <span className="font-medium">CEDIS</span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-sm shadow-sm">
+                  <Truck className="w-5 h-5 text-emerald-600" />
+                  <span className="font-medium">DISTRIBUCIÓN</span>
+                </div>
+                <ArrowRight className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-sm shadow-sm border-2 border-emerald-300">
+                  <Store className="w-5 h-5 text-emerald-600" />
+                  <span className="font-medium">CLIENTE FINAL</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Items Summary */}
+          {actionItems && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Orders to Origin */}
+              <Card className={`rounded-sm ${actionItems.actions.origin_orders_today?.length > 0 ? 'border-orange-300 bg-orange-50' : 'border-slate-200'}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Ship className="w-5 h-5 text-orange-600" />
+                    Pedir a Origen HOY
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {actionItems.actions.origin_orders_today?.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      {actionItems.actions.origin_orders_today.slice(0, 5).map((item, idx) => (
+                        <div key={idx} className="mb-2 p-2 bg-white rounded-sm text-sm">
+                          <p className="font-medium">{item.product_name}</p>
+                          <p className="text-xs text-slate-500">{item.origin} • Déficit: {formatNumber(item.deficit)} uds</p>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-slate-500">No hay pedidos urgentes hoy</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Urgent Distributions */}
+              <Card className={`rounded-sm ${actionItems.actions.distributions_urgent?.length > 0 ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                    Distribuir Urgente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {actionItems.actions.distributions_urgent?.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      {actionItems.actions.distributions_urgent.slice(0, 5).map((item, idx) => (
+                        <div key={idx} className="mb-2 p-2 bg-white rounded-sm text-sm">
+                          <p className="font-medium">{item.product_name}</p>
+                          <p className="text-xs text-slate-500">{item.locations_to_serve} ubicaciones • {formatNumber(item.units_needed)} uds</p>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-slate-500">No hay distribuciones urgentes</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* End Client Alerts */}
+              <Card className={`rounded-sm ${actionItems.actions.end_client_alerts?.length > 0 ? 'border-red-300 bg-red-50' : 'border-slate-200'}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    Alertas Cliente Final
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {actionItems.actions.end_client_alerts?.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      {actionItems.actions.end_client_alerts.slice(0, 5).map((item, idx) => (
+                        <div key={idx} className="mb-2 p-2 bg-white rounded-sm text-sm">
+                          <p className="font-medium">{item.product_name}</p>
+                          <p className="text-xs text-red-600">{item.critical_locations} ubicaciones críticas</p>
+                          <p className="text-xs text-slate-500">Desabasto: {item.earliest_stockout}</p>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-slate-500">Sin alertas de desabasto</p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Full Supply Chain Plans */}
+          <Card className="border-slate-200 rounded-sm">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Route className="w-5 h-5 text-slate-600" />
+                Plan de Cadena de Suministro por Producto
+              </CardTitle>
+              <p className="text-sm text-slate-500">Planificación integrada para evitar desabasto en cliente final</p>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[500px]">
+                <div className="space-y-3">
+                  {supplyChainPlan?.plans?.map((plan, idx) => {
+                    const actConf = actionConfig[plan.action_required] || actionConfig.none;
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`p-4 rounded-sm border-2 cursor-pointer hover:shadow-md transition-shadow ${actConf.bgLight}`}
+                        onClick={() => handleViewSkuDetail(plan)}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge className={brandColors[plan.brand] || 'bg-slate-100'}>{plan.brand}</Badge>
+                            <Badge className={`${actConf.color} ${actConf.text} rounded-sm`}>
+                              {actConf.label}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-slate-500 font-mono">{plan.sku}</span>
+                        </div>
+                        
+                        <p className="font-semibold text-slate-900 mb-3">{plan.product_name}</p>
+                        <p className="text-sm text-slate-600 mb-3">{plan.action_description}</p>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                          <div className="bg-white/60 p-2 rounded-sm">
+                            <p className="text-slate-500">Stock CEDIS</p>
+                            <p className="font-bold text-lg">{formatNumber(plan.cedis_current_stock)}</p>
+                            <p className="text-slate-400">{plan.cedis_days_of_stock}d de stock</p>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-sm">
+                            <p className="text-slate-500">Demanda Clientes</p>
+                            <p className="font-bold text-lg text-blue-600">{formatNumber(plan.total_end_client_demand)}</p>
+                            <p className="text-slate-400">{plan.end_clients_needing_restock} ubicaciones</p>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-sm">
+                            <p className="text-slate-500">Ubicaciones Críticas</p>
+                            <p className={`font-bold text-lg ${plan.critical_end_client_locations > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                              {plan.critical_end_client_locations}
+                            </p>
+                            <p className="text-slate-400">{plan.can_fulfill_from_cedis ? '✓ Puede surtir' : '✗ Déficit'}</p>
+                          </div>
+                          <div className="bg-white/60 p-2 rounded-sm">
+                            <p className="text-slate-500">Lead Time</p>
+                            <p className="font-bold text-lg">{plan.inbound_lead_time_days}d</p>
+                            <p className="text-slate-400">{plan.suggested_origin}</p>
+                          </div>
+                        </div>
+
+                        {(plan.distribution_ship_by_date || plan.cedis_reorder_date) && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-2 gap-4 text-xs">
+                            {plan.distribution_ship_by_date && (
+                              <div className="flex items-center gap-2">
+                                <Truck className="w-4 h-4 text-blue-500" />
+                                <span>Enviar de CEDIS: <strong>{plan.distribution_ship_by_date}</strong></span>
+                              </div>
+                            )}
+                            {plan.cedis_reorder_date && (
+                              <div className="flex items-center gap-2">
+                                <Ship className="w-4 h-4 text-orange-500" />
+                                <span>Pedir a origen: <strong>{plan.cedis_reorder_date}</strong></span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Distribution Tab */}
+        <TabsContent value="distribution" className="space-y-4" data-testid="distribution-content">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Órdenes de Distribución</h3>
+              <p className="text-sm text-slate-500">Entregas pendientes desde CEDIS a clientes finales</p>
+            </div>
+            <div className="flex gap-2">
+              <Badge className="bg-red-100 text-red-700">{distributionOrders?.summary?.critical_orders || 0} críticas</Badge>
+              <Badge className="bg-slate-100">{distributionOrders?.summary?.total_orders || 0} total</Badge>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* By Priority */}
             <Card className="border-slate-200 rounded-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Timer className="w-5 h-5 text-blue-600" />
-                  Predicción de Reabastecimiento
-                </CardTitle>
-                <p className="text-sm text-slate-500">Cuándo pedir a origen considerando tiempo de tránsito</p>
+                <CardTitle className="text-base">Por Prioridad</CardTitle>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px]">
-                  <div className="space-y-3">
-                    {restockPredictions?.predictions?.slice(0, 15).map((pred, idx) => {
-                      const urgConf = urgencyConfig[pred.urgency_level] || urgencyConfig.ok;
-                      return (
-                        <div key={idx} className={`p-3 rounded-sm border ${urgConf.bgLight}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Badge className={brandColors[pred.brand] || 'bg-slate-100'}>{pred.brand}</Badge>
-                              <Badge variant="outline" className={`rounded-sm ${urgConf.text} border-current`}>
-                                {urgConf.label}
-                              </Badge>
-                            </div>
-                            <span className="text-xs text-slate-500 font-mono">{pred.sku}</span>
-                          </div>
-                          <p className="font-semibold text-slate-900 text-sm">{pred.product_name}</p>
-                          
-                          <div className="grid grid-cols-2 gap-4 mt-3 text-xs">
-                            <div>
-                              <p className="text-slate-500">Stock Actual</p>
-                              <p className="font-bold text-lg">{formatNumber(pred.current_stock)}</p>
-                            </div>
-                            <div>
-                              <p className="text-slate-500">Días hasta agotarse</p>
-                              <p className={`font-bold text-lg ${pred.days_until_stockout <= 7 ? 'text-red-600' : 'text-slate-900'}`}>
-                                {pred.days_until_stockout < 999 ? `${pred.days_until_stockout}d` : 'N/A'}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-3 p-2 bg-white/50 rounded-sm">
-                            <div className="flex items-center gap-2 text-xs">
-                              <Route className="w-4 h-4 text-slate-400" />
-                              <span className="font-medium">{pred.route_details?.origin}</span>
-                              <ArrowRight className="w-3 h-3" />
-                              <span className="font-medium">{pred.route_details?.destination}</span>
-                              <Badge variant="outline" className="ml-auto text-xs">
-                                {pred.transit_time_days} días
-                              </Badge>
-                            </div>
-                            <div className="flex justify-between mt-2 text-xs text-slate-600">
-                              <span>📅 Pedir: <strong>{pred.reorder_point_date}</strong></span>
-                              <span>📦 Llega: <strong>{pred.expected_delivery_date}</strong></span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {distributionOrders?.orders?.map((order, idx) => (
+                    <div key={idx} className={`mb-3 p-3 rounded-sm border ${
+                      order.priority === 'critical' ? 'border-red-200 bg-red-50' :
+                      order.priority === 'high' ? 'border-amber-200 bg-amber-50' :
+                      'border-slate-200 bg-white'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge className={
+                          order.priority === 'critical' ? 'bg-red-600 text-white' :
+                          order.priority === 'high' ? 'bg-amber-600 text-white' :
+                          'bg-slate-200'
+                        }>{order.priority.toUpperCase()}</Badge>
+                        <span className="text-xs text-slate-500">{order.ship_by_date}</span>
+                      </div>
+                      <p className="font-medium text-sm">{order.product_name}</p>
+                      <p className="text-xs text-slate-500">{order.client_name} - {order.store_name}</p>
+                      <p className="text-xs text-slate-400 mt-1">{formatNumber(order.quantity)} unidades • {order.distribution_time_days}d de tránsito</p>
+                    </div>
+                  ))}
                 </ScrollArea>
               </CardContent>
             </Card>
 
-            {/* Timeline */}
+            {/* By Client */}
             <Card className="border-slate-200 rounded-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CalendarClock className="w-5 h-5 text-purple-600" />
-                  Línea de Tiempo - Próximos 30 días
-                </CardTitle>
-                <p className="text-sm text-slate-500">Pedidos a origen y entregas esperadas</p>
+                <CardTitle className="text-base">Por Cliente</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-amber-500" />
-                    <span>Pedidos: {restockTimeline?.total_orders_planned || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span>Entregas: {restockTimeline?.total_deliveries_expected || 0}</span>
-                  </div>
-                </div>
-                <ScrollArea className="h-[380px]">
-                  <div className="space-y-3">
-                    {restockTimeline?.timeline?.map((day, idx) => (
-                      <div key={idx} className="p-3 bg-slate-50 rounded-sm border border-slate-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-slate-900">{day.date}</span>
-                            <Badge variant="outline" className="text-xs">{day.day_name}</Badge>
+                <div className="space-y-3">
+                  {Object.entries(distributionOrders?.by_client || {}).map(([client, data]) => (
+                    <div key={client} className="p-3 bg-slate-50 rounded-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-sm ${clientColors[client] || 'bg-slate-600'} flex items-center justify-center`}>
+                            <Building2 className="w-4 h-4 text-white" />
                           </div>
-                          <div className="flex gap-2">
-                            {day.orders_count > 0 && (
-                              <Badge className="bg-amber-100 text-amber-700 rounded-sm">
-                                {day.orders_count} pedidos
-                              </Badge>
-                            )}
-                            {day.deliveries_count > 0 && (
-                              <Badge className="bg-emerald-100 text-emerald-700 rounded-sm">
-                                {day.deliveries_count} entregas
-                              </Badge>
-                            )}
-                          </div>
+                          <span className="font-medium">{client}</span>
                         </div>
-                        
-                        {day.orders_to_place.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-xs text-amber-600 font-medium mb-1">📤 PEDIR A ORIGEN:</p>
-                            {day.orders_to_place.map((order, oIdx) => (
-                              <div key={oIdx} className="text-xs bg-amber-50 p-2 rounded mb-1 flex justify-between">
-                                <span>{order.product_name}</span>
-                                <span className="text-slate-500">{order.origin} • {formatNumber(order.quantity)} uds</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {day.deliveries_expected.length > 0 && (
-                          <div>
-                            <p className="text-xs text-emerald-600 font-medium mb-1">📥 ENTREGAS ESPERADAS:</p>
-                            {day.deliveries_expected.map((del, dIdx) => (
-                              <div key={dIdx} className="text-xs bg-emerald-50 p-2 rounded mb-1 flex justify-between">
-                                <span>{del.product_name}</span>
-                                <span className="text-slate-500">{formatNumber(del.quantity)} uds</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="text-right">
+                          <p className="font-bold">{data.orders} órdenes</p>
+                          <p className="text-xs text-slate-500">{formatNumber(data.units)} unidades</p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* End Clients Tab - NEW */}
+        {/* End Clients Tab */}
         <TabsContent value="end-clients" className="space-y-6" data-testid="end-clients-content">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">Inventario de Clientes Finales</h3>
-              <p className="text-sm text-slate-500">Visibilidad de stock en tiendas de retail (Walmart, Costco, HEB, etc.)</p>
-            </div>
-          </div>
-
-          {/* Client Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {endClientsOverview?.clients?.map((client, idx) => {
               const clientColor = clientColors[client.client_name] || 'bg-slate-600';
               const isUrgent = client.restock_urgency === 'critical';
-              const isHigh = client.restock_urgency === 'high';
               
               return (
                 <Card 
                   key={idx} 
                   className={`border-2 rounded-sm cursor-pointer transition-all hover:shadow-md ${
-                    isUrgent ? 'border-red-300 bg-red-50' : isHigh ? 'border-amber-300 bg-amber-50' : 'border-slate-200'
+                    isUrgent ? 'border-red-300 bg-red-50' : 'border-slate-200'
                   }`}
                   onClick={() => handleViewClientDetail(client.client_name)}
-                  data-testid={`client-card-${client.client_name}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3 mb-4">
@@ -526,18 +665,9 @@ const Inventory = () => {
                         <p className="text-xs text-slate-500">{client.total_stores} tiendas</p>
                       </div>
                       {isUrgent && <Badge className="bg-red-600 text-white ml-auto">CRÍTICO</Badge>}
-                      {isHigh && !isUrgent && <Badge className="bg-amber-600 text-white ml-auto">ALTO</Badge>}
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div className="bg-white/70 p-2 rounded-sm">
-                        <p className="text-xs text-slate-500">Productos</p>
-                        <p className="font-bold">{formatNumber(client.products_tracked)}</p>
-                      </div>
-                      <div className="bg-white/70 p-2 rounded-sm">
-                        <p className="text-xs text-slate-500">Necesitan Restock</p>
-                        <p className="font-bold text-amber-600">{formatNumber(client.items_needing_restock)}</p>
-                      </div>
                       <div className="bg-white/70 p-2 rounded-sm">
                         <p className="text-xs text-slate-500">Críticos</p>
                         <p className="font-bold text-red-600">{client.critical_stockouts}</p>
@@ -556,35 +686,6 @@ const Inventory = () => {
               );
             })}
           </div>
-
-          {/* Summary Stats */}
-          <Card className="border-slate-200 rounded-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Resumen Total de Clientes Finales</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-slate-50 rounded-sm">
-                  <p className="text-3xl font-bold text-slate-900">{endClientsOverview?.total_clients || 0}</p>
-                  <p className="text-sm text-slate-500">Clientes</p>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-sm">
-                  <p className="text-3xl font-bold text-red-600">{endClientsOverview?.total_critical_items || 0}</p>
-                  <p className="text-sm text-red-500">Items Críticos</p>
-                </div>
-                <div className="text-center p-4 bg-amber-50 rounded-sm">
-                  <p className="text-3xl font-bold text-amber-600">{endClientsOverview?.total_restock_items || 0}</p>
-                  <p className="text-sm text-amber-500">Necesitan Restock</p>
-                </div>
-                <div className="text-center p-4 bg-blue-50 rounded-sm">
-                  <p className="text-3xl font-bold text-blue-600">
-                    {formatNumber(endClientsOverview?.clients?.reduce((sum, c) => sum + c.total_units_to_ship, 0) || 0)}
-                  </p>
-                  <p className="text-sm text-blue-500">Unidades a Enviar</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Inventory Tab */}
@@ -604,17 +705,6 @@ const Inventory = () => {
                 {brands.map(brand => <SelectItem key={brand} value={brand}>{brand}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40 rounded-sm">
-                <Filter className="w-4 h-4 mr-2 text-slate-400" /><SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="critical">Crítico</SelectItem>
-                <SelectItem value="low">Bajo</SelectItem>
-                <SelectItem value="optimal">Óptimo</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <Card className="border-slate-200 rounded-sm shadow-sm">
@@ -625,7 +715,6 @@ const Inventory = () => {
                     <TableHead className="text-xs font-semibold text-slate-500 uppercase">Producto</TableHead>
                     <TableHead className="text-xs font-semibold text-slate-500 uppercase">Marca</TableHead>
                     <TableHead className="text-xs font-semibold text-slate-500 uppercase text-right">Stock</TableHead>
-                    <TableHead className="text-xs font-semibold text-slate-500 uppercase text-center">Nivel</TableHead>
                     <TableHead className="text-xs font-semibold text-slate-500 uppercase text-center">Estado</TableHead>
                     <TableHead className="text-xs font-semibold text-slate-500 uppercase text-center">Posiciones</TableHead>
                   </TableRow>
@@ -633,8 +722,6 @@ const Inventory = () => {
                 <TableBody>
                   {filteredInventory.map((item) => {
                     const statusConf = stockStatusConfig[item.stock_status];
-                    const stockPercent = Math.min((item.current_stock / item.minimum_stock) * 50, 100);
-                    
                     return (
                       <TableRow key={item.sku} className="hover:bg-slate-50">
                         <TableCell>
@@ -646,10 +733,6 @@ const Inventory = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="font-medium">{formatNumber(item.current_stock)}</span>
-                          <span className="text-slate-400 text-sm"> / {formatNumber(item.minimum_stock)}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Progress value={stockPercent} className={`h-2 w-20 mx-auto ${item.stock_status === 'critical' ? '[&>div]:bg-red-500' : item.stock_status === 'low' ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`} />
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={`rounded-sm ${statusConf.color}`}>{statusConf.label}</Badge>
@@ -671,7 +754,7 @@ const Inventory = () => {
         {/* Appointments Tab */}
         <TabsContent value="appointments" className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Citas de Entrega</h3>
+            <h3 className="text-lg font-semibold">Citas de Entrega (Inbounds)</h3>
             <Button onClick={() => setShowAppointmentModal(true)} className="rounded-sm bg-slate-900">
               <Plus className="w-4 h-4 mr-2" />Nueva Cita
             </Button>
@@ -684,77 +767,19 @@ const Inventory = () => {
                 return (
                   <Card key={appt.id || idx} className="border-slate-200 rounded-sm">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge className={brandColors[appt.brand] || 'bg-slate-100'}>{appt.brand}</Badge>
-                            <Badge variant="outline" className={`rounded-sm ${statusConf?.color}`}>{statusConf?.label}</Badge>
-                            <Badge variant="outline" className="rounded-sm bg-slate-100">
-                              <DoorOpen className="w-3 h-3 mr-1" />Puerta {appt.assigned_door}
-                            </Badge>
-                          </div>
-                          <p className="font-semibold text-slate-900">{appt.product_name}</p>
-                          <p className="text-sm text-slate-500 font-mono">{appt.container_number}</p>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 p-3 bg-slate-50 rounded-sm">
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase">Fecha/Hora</p>
-                              <p className="font-medium">{appt.scheduled_date} {appt.scheduled_time}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase flex items-center gap-1">
-                                <User className="w-3 h-3" />Operador
-                              </p>
-                              <p className="font-medium">{appt.operator_name}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase flex items-center gap-1">
-                                <FileText className="w-3 h-3" />Licencia
-                              </p>
-                              <p className="font-mono text-sm">{appt.operator_license}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-slate-500 uppercase flex items-center gap-1">
-                                <Shield className="w-3 h-3" />Póliza
-                              </p>
-                              <p className="font-mono text-sm">{appt.insurance_policy}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 text-sm text-slate-500">
-                            <Car className="w-4 h-4" />
-                            <span>Placas: {appt.truck_plates}</span>
-                            <span className="mx-2">|</span>
-                            <span>{formatNumber(appt.quantity)} unidades</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        </TabsContent>
-
-        {/* Containers Tab */}
-        <TabsContent value="containers" className="space-y-4">
-          <ScrollArea className="h-[500px]">
-            <div className="space-y-4">
-              {containers?.products_in_transit?.map((product, idx) => {
-                const urgency = urgencyConfig[product.delivery_urgency];
-                return (
-                  <Card key={product.sku} className={`border-l-4 ${urgency?.color || 'border-slate-400'} rounded-sm`}>
-                    <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge className={brandColors[product.brand] || 'bg-slate-100'}>{product.brand}</Badge>
-                        <Badge variant="outline" className={`rounded-sm ${urgency?.text || 'text-slate-600'}`}>Prioridad: {urgency?.label || 'N/A'}</Badge>
+                        <Badge className={brandColors[appt.brand] || 'bg-slate-100'}>{appt.brand}</Badge>
+                        <Badge variant="outline" className={`rounded-sm ${statusConf?.color}`}>{statusConf?.label}</Badge>
+                        <Badge variant="outline" className="rounded-sm bg-slate-100">
+                          <DoorOpen className="w-3 h-3 mr-1" />Puerta {appt.assigned_door}
+                        </Badge>
                       </div>
-                      <h3 className="font-semibold text-slate-900">{product.product_name}</h3>
-                      <div className="grid grid-cols-4 gap-4 mt-3 p-3 bg-slate-50 rounded-sm">
-                        <div><p className="text-xs text-slate-500">Stock Actual</p><p className="font-bold text-red-600">{formatNumber(product.current_stock)}</p></div>
-                        <div><p className="text-xs text-slate-500">Mínimo</p><p className="font-semibold">{formatNumber(product.minimum_stock)}</p></div>
-                        <div><p className="text-xs text-slate-500">En Tránsito</p><p className="font-bold text-blue-600">{formatNumber(product.total_units_in_transit)}</p></div>
-                        <div><p className="text-xs text-slate-500">Contenedores</p><p className="font-semibold">{product.containers?.length}</p></div>
+                      <p className="font-semibold text-slate-900">{appt.product_name}</p>
+                      <p className="text-sm text-slate-500 font-mono">{appt.container_number}</p>
+                      <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+                        <span>📅 {appt.scheduled_date} {appt.scheduled_time}</span>
+                        <span>👤 {appt.operator_name}</span>
+                        <span>{formatNumber(appt.quantity)} unidades</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -764,6 +789,68 @@ const Inventory = () => {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {/* SKU Detail Modal */}
+      <Dialog open={showSkuDetailModal} onOpenChange={setShowSkuDetailModal}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Route className="w-5 h-5 text-blue-600" />
+              Plan de Cadena: {selectedSkuPlan?.product_name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedSkuPlan && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-sm ${actionConfig[selectedSkuPlan.action_required]?.bgLight}`}>
+                <p className="font-medium">{selectedSkuPlan.action_description}</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-sm">
+                  <h4 className="font-medium mb-2">📦 CEDIS</h4>
+                  <p className="text-2xl font-bold">{formatNumber(selectedSkuPlan.cedis_current_stock)}</p>
+                  <p className="text-sm text-slate-500">Stock actual ({selectedSkuPlan.cedis_days_of_stock}d)</p>
+                  <p className="text-sm text-slate-500">Mínimo: {formatNumber(selectedSkuPlan.cedis_minimum_stock)}</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-sm">
+                  <h4 className="font-medium mb-2">🏪 Clientes Finales</h4>
+                  <p className="text-2xl font-bold text-blue-600">{formatNumber(selectedSkuPlan.total_end_client_demand)}</p>
+                  <p className="text-sm text-slate-500">Demanda total</p>
+                  <p className="text-sm text-red-500">{selectedSkuPlan.critical_end_client_locations} ubicaciones críticas</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-50 rounded-sm">
+                <h4 className="font-medium mb-2">🚢 Ruta de Inbound</h4>
+                <div className="flex items-center gap-2">
+                  <span>{selectedSkuPlan.route_details?.origin}</span>
+                  <ArrowRight className="w-4 h-4" />
+                  <span>{selectedSkuPlan.route_details?.destination}</span>
+                  <Badge className="ml-auto">{selectedSkuPlan.inbound_lead_time_days} días</Badge>
+                </div>
+                <p className="text-sm text-slate-500 mt-1">
+                  Tránsito: {selectedSkuPlan.route_details?.transit_days}d + Puerto + Aduana + Terrestre
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {selectedSkuPlan.distribution_ship_by_date && (
+                  <div className="p-3 bg-emerald-50 rounded-sm">
+                    <p className="text-emerald-700 font-medium">🚚 Enviar de CEDIS</p>
+                    <p className="text-lg font-bold">{selectedSkuPlan.distribution_ship_by_date}</p>
+                  </div>
+                )}
+                {selectedSkuPlan.cedis_reorder_date && (
+                  <div className="p-3 bg-orange-50 rounded-sm">
+                    <p className="text-orange-700 font-medium">📦 Pedir a Origen</p>
+                    <p className="text-lg font-bold">{selectedSkuPlan.cedis_reorder_date}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Positions Modal */}
       <Dialog open={showPositionsModal} onOpenChange={setShowPositionsModal}>
@@ -781,38 +868,18 @@ const Inventory = () => {
           ) : productPositions && (
             <div className="space-y-4">
               <div className="p-4 bg-slate-50 rounded-sm">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-slate-900">{productPositions.product_name}</p>
-                    <p className="text-sm text-slate-500">{productPositions.brand} - {productPositions.sku}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge className="bg-emerald-100 text-emerald-700 rounded-sm">
-                      <DoorOpen className="w-3 h-3 mr-1" />
-                      Puerta Recomendada: {productPositions.recommended_door}
-                    </Badge>
-                  </div>
-                </div>
+                <p className="font-semibold">{productPositions.product_name}</p>
+                <Badge className="mt-2 bg-emerald-100 text-emerald-700">
+                  Puerta Recomendada: {productPositions.recommended_door}
+                </Badge>
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                {Object.entries(productPositions.zone_distribution || {}).map(([zone, data]) => (
-                  <div key={zone} className={`p-3 rounded-sm text-white ${zoneColors[zone]}`}>
-                    <p className="font-bold">Zona {zone}</p>
-                    <p className="text-sm">{data.positions} posiciones</p>
-                    <p className="text-sm">{formatNumber(data.units)} unidades</p>
-                  </div>
-                ))}
-              </div>
-
               <ScrollArea className="h-[300px]">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Posición</TableHead>
                       <TableHead className="text-right">Unidades</TableHead>
-                      <TableHead className="text-right">Capacidad</TableHead>
-                      <TableHead className="text-center">Puerta Cercana</TableHead>
+                      <TableHead className="text-center">Puerta</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -824,7 +891,6 @@ const Inventory = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatNumber(pos.current_units)}</TableCell>
-                        <TableCell className="text-right text-slate-500">{formatNumber(pos.capacity)}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className="rounded-sm">Puerta {pos.nearest_door}</Badge>
                         </TableCell>
@@ -844,11 +910,8 @@ const Inventory = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Store className="w-5 h-5 text-purple-600" />
-              Inventario de {selectedClientInventory?.client_name}
+              {selectedClientInventory?.client_name}
             </DialogTitle>
-            <DialogDescription>
-              Detalle de stock por tienda y producto
-            </DialogDescription>
           </DialogHeader>
           {clientDetailLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -856,15 +919,10 @@ const Inventory = () => {
             </div>
           ) : selectedClientInventory && (
             <div className="space-y-4">
-              {/* Summary */}
               <div className="grid grid-cols-4 gap-3">
                 <div className="p-3 bg-slate-50 rounded-sm text-center">
                   <p className="text-2xl font-bold">{selectedClientInventory.summary?.total_locations}</p>
                   <p className="text-xs text-slate-500">Tiendas</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-sm text-center">
-                  <p className="text-2xl font-bold">{selectedClientInventory.summary?.products_tracked}</p>
-                  <p className="text-xs text-slate-500">Productos</p>
                 </div>
                 <div className="p-3 bg-red-50 rounded-sm text-center">
                   <p className="text-2xl font-bold text-red-600">{selectedClientInventory.summary?.critical_stockouts}</p>
@@ -874,34 +932,28 @@ const Inventory = () => {
                   <p className="text-2xl font-bold text-blue-600">{formatNumber(selectedClientInventory.summary?.total_units_to_ship)}</p>
                   <p className="text-xs text-blue-500">Unidades a Enviar</p>
                 </div>
+                <div className="p-3 bg-slate-50 rounded-sm text-center">
+                  <p className="text-2xl font-bold">{selectedClientInventory.summary?.products_tracked}</p>
+                  <p className="text-xs text-slate-500">Productos</p>
+                </div>
               </div>
 
-              {/* Stores List */}
               <ScrollArea className="h-[400px]">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {selectedClientInventory.stores?.slice(0, 10).map((store, idx) => (
                     <Card key={idx} className={`border rounded-sm ${store.critical_count > 0 ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="font-semibold">{store.store_name}</p>
-                            <p className="text-xs text-slate-500 font-mono">{store.store_code}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            {store.critical_count > 0 && (
-                              <Badge className="bg-red-600 text-white">{store.critical_count} críticos</Badge>
-                            )}
-                            {store.needs_restock_count > 0 && (
-                              <Badge className="bg-amber-100 text-amber-700">{store.needs_restock_count} restock</Badge>
-                            )}
-                          </div>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="font-semibold">{store.store_name}</p>
+                          {store.critical_count > 0 && (
+                            <Badge className="bg-red-600 text-white">{store.critical_count} críticos</Badge>
+                          )}
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                           {store.products?.slice(0, 4).map((prod, pIdx) => (
-                            <div key={pIdx} className={`p-2 rounded-sm text-xs ${prod.days_of_stock <= 3 ? 'bg-red-100' : prod.needs_restock ? 'bg-amber-100' : 'bg-white'}`}>
+                            <div key={pIdx} className={`p-2 rounded-sm text-xs ${prod.days_of_stock <= 3 ? 'bg-red-100' : 'bg-white'}`}>
                               <p className="font-medium truncate">{prod.product_name}</p>
-                              <p className="text-slate-500">Stock: {prod.current_stock} ({prod.days_of_stock}d)</p>
+                              <p className="text-slate-500">{prod.current_stock} uds ({prod.days_of_stock}d)</p>
                             </div>
                           ))}
                         </div>
@@ -920,7 +972,6 @@ const Inventory = () => {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Nuevo Producto</DialogTitle>
-            <DialogDescription>Agregar un nuevo material al inventario</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -944,11 +995,6 @@ const Inventory = () => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div><Label>Unidades/Contenedor</Label><Input type="number" value={newProduct.units_per_container} onChange={e => setNewProduct({...newProduct, units_per_container: parseInt(e.target.value)})} /></div>
-              <div><Label>Stock Mínimo</Label><Input type="number" value={newProduct.minimum_stock} onChange={e => setNewProduct({...newProduct, minimum_stock: parseInt(e.target.value)})} /></div>
-              <div><Label>Stock Máximo</Label><Input type="number" value={newProduct.maximum_stock} onChange={e => setNewProduct({...newProduct, maximum_stock: parseInt(e.target.value)})} /></div>
-            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setShowNewProductModal(false)}>Cancelar</Button>
               <Button onClick={handleCreateProduct} className="bg-slate-900">Crear Producto</Button>
@@ -961,8 +1007,7 @@ const Inventory = () => {
       <Dialog open={showAppointmentModal} onOpenChange={setShowAppointmentModal}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Nueva Cita de Entrega</DialogTitle>
-            <DialogDescription>Programar recepción de contenedor</DialogDescription>
+            <DialogTitle>Nueva Cita de Entrega (Inbound)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -982,14 +1027,13 @@ const Inventory = () => {
             <Separator />
             <p className="text-sm font-semibold text-slate-700">Datos del Operador</p>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label><User className="w-3 h-3 inline mr-1" />Nombre Operador *</Label><Input value={newAppointment.operator_name} onChange={e => setNewAppointment({...newAppointment, operator_name: e.target.value})} placeholder="Nombre completo" /></div>
-              <div><Label><FileText className="w-3 h-3 inline mr-1" />No. Licencia *</Label><Input value={newAppointment.operator_license} onChange={e => setNewAppointment({...newAppointment, operator_license: e.target.value})} placeholder="LIC-MX-000000" /></div>
+              <div><Label>Nombre Operador *</Label><Input value={newAppointment.operator_name} onChange={e => setNewAppointment({...newAppointment, operator_name: e.target.value})} placeholder="Nombre completo" /></div>
+              <div><Label>No. Licencia *</Label><Input value={newAppointment.operator_license} onChange={e => setNewAppointment({...newAppointment, operator_license: e.target.value})} placeholder="LIC-MX-000000" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label><Shield className="w-3 h-3 inline mr-1" />Póliza de Seguro *</Label><Input value={newAppointment.insurance_policy} onChange={e => setNewAppointment({...newAppointment, insurance_policy: e.target.value})} placeholder="POL-SEG-2024-000" /></div>
-              <div><Label><Car className="w-3 h-3 inline mr-1" />Placas *</Label><Input value={newAppointment.truck_plates} onChange={e => setNewAppointment({...newAppointment, truck_plates: e.target.value})} placeholder="ABC-123-X" /></div>
+              <div><Label>Póliza de Seguro *</Label><Input value={newAppointment.insurance_policy} onChange={e => setNewAppointment({...newAppointment, insurance_policy: e.target.value})} placeholder="POL-SEG-2024-000" /></div>
+              <div><Label>Placas *</Label><Input value={newAppointment.truck_plates} onChange={e => setNewAppointment({...newAppointment, truck_plates: e.target.value})} placeholder="ABC-123-X" /></div>
             </div>
-            <div><Label>Notas</Label><Input value={newAppointment.notes} onChange={e => setNewAppointment({...newAppointment, notes: e.target.value})} placeholder="Notas adicionales" /></div>
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setShowAppointmentModal(false)}>Cancelar</Button>
               <Button onClick={handleCreateAppointment} className="bg-slate-900">Crear Cita</Button>
