@@ -110,4 +110,39 @@ export const createAppointment = (data) => {
 export const updateAppointmentStatus = (id, status) => api.put(`/appointments/${id}/status?new_status=${status}`);
 export const getDoorRecommendation = (appointmentId) => api.get(`/appointments/${appointmentId}/door-recommendation`);
 
+// AI Document Extraction
+export const extractDocument = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/ai/extract-document', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+};
+
+// AI Chatbot
+export const sendChatMessage = (message, sessionId = null) => 
+  api.post('/ai/chat', { message, session_id: sessionId });
+export const getChatHistory = (sessionId) => api.get(`/ai/chat/history/${sessionId}`);
+
+// Pending Orders (Confirmations)
+export const getPendingOriginOrders = () => api.get('/orders/pending-origin');
+export const confirmOriginOrder = (orderId, quantity = null) => 
+  api.post(`/orders/pending-origin/${orderId}/confirm${quantity ? `?quantity=${quantity}` : ''}`);
+export const rejectOriginOrder = (orderId, reason = '') => 
+  api.post(`/orders/pending-origin/${orderId}/reject?reason=${encodeURIComponent(reason)}`);
+export const confirmBulkOriginOrders = (orderIds) => 
+  api.post('/orders/confirm-bulk-origin', orderIds);
+
+export const getPendingDistributionOrders = () => api.get('/orders/pending-distribution');
+export const confirmDistributionOrder = (orderId, quantity = null) => 
+  api.post(`/orders/pending-distribution/${orderId}/confirm${quantity ? `?quantity=${quantity}` : ''}`);
+export const rejectDistributionOrder = (orderId, reason = '') => 
+  api.post(`/orders/pending-distribution/${orderId}/reject?reason=${encodeURIComponent(reason)}`);
+export const confirmBulkDistributionOrders = (orderIds) => 
+  api.post('/orders/confirm-bulk-distribution', orderIds);
+
+// New Orders with Containers
+export const createOrderWithContainers = (orderData) => 
+  api.post('/orders/create-with-containers', orderData);
+
 export default api;
