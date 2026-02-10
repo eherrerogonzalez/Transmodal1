@@ -305,6 +305,66 @@ class EndClientSummary(BaseModel):
     critical_stockouts: int
     total_units_to_ship: int
 
+# ==================== SUPPLY CHAIN PLANNING MODEL ====================
+
+class SupplyChainPlan(BaseModel):
+    """Planificación integrada de cadena de suministro para evitar desabasto en cliente final"""
+    sku: str
+    product_name: str
+    brand: str
+    
+    # Estado actual en toda la cadena
+    cedis_current_stock: int
+    cedis_minimum_stock: int
+    cedis_days_of_stock: float
+    
+    # Demanda agregada de clientes finales
+    total_end_client_demand: int  # Unidades que necesitan los clientes finales
+    end_clients_needing_restock: int
+    critical_end_client_locations: int
+    
+    # Análisis de capacidad
+    can_fulfill_from_cedis: bool  # ¿CEDIS puede surtir la demanda actual?
+    cedis_deficit: int  # Unidades faltantes en CEDIS para surtir demanda
+    
+    # Fechas críticas
+    earliest_end_client_stockout: Optional[str]  # Fecha más temprana de desabasto en cliente final
+    distribution_ship_by_date: Optional[str]  # Cuándo debe salir de CEDIS
+    cedis_reorder_date: Optional[str]  # Cuándo pedir a origen
+    expected_inbound_date: Optional[str]  # Cuándo llega el inbound a CEDIS
+    
+    # Tiempos
+    distribution_time_days: int  # CEDIS → Cliente final
+    inbound_lead_time_days: int  # Origen → CEDIS
+    
+    # Acciones recomendadas
+    action_required: str  # "none", "distribute", "order_now", "order_soon", "emergency"
+    action_description: str
+    
+    # Detalle de rutas
+    suggested_origin: str
+    route_details: dict
+    
+    # Prioridad
+    priority_score: float  # 0-100, mayor = más urgente
+
+class DistributionOrder(BaseModel):
+    """Orden de distribución de CEDIS a cliente final"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sku: str
+    product_name: str
+    brand: str
+    client_name: str
+    store_code: str
+    store_name: str
+    region: str
+    quantity: int
+    ship_by_date: str
+    expected_arrival: str
+    distribution_time_days: int
+    priority: str  # "critical", "high", "medium", "low"
+    status: str = "pending"  # "pending", "shipped", "delivered"
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
