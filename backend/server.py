@@ -80,6 +80,16 @@ class ContainerLocation(BaseModel):
     vessel_name: Optional[str] = None
     eta: Optional[str] = None
 
+class ContainerAdditional(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    type: str
+    reason_code: str
+    reason_description: str
+    amount: float
+    status: str  # "pending", "approved", "rejected"
+    requested_at: str
+    approved_at: Optional[str] = None
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -95,6 +105,11 @@ class Container(BaseModel):
     longitude: float
     order_id: Optional[str] = None
     transport_mode: str = "maritime"
+    is_invoiced: bool = False
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[str] = None
+    has_additionals: bool = False
+    additionals_count: int = 0
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class OrderDocument(BaseModel):
