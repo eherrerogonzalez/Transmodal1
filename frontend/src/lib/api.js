@@ -60,4 +60,8 @@ export const rejectAdditional = (id) => api.put(`/additionals/${id}/reject`);
 // Account Statement
 export const getAccountStatement = () => api.get('/account-statement');
 
+// Planning
+export const getHistoricalData = () => api.get('/planning/historical');
+export const getPlanningForecast = (doors = 8) => api.get(`/planning/forecast?doors=${doors}`);
+
 export default api;
