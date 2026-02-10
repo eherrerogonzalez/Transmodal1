@@ -496,6 +496,12 @@ async def get_container_tracking(container_id: str, user: dict = Depends(verify_
         events=events
     )
 
+@api_router.get("/containers/{container_id}/additionals", response_model=List[ContainerAdditional])
+async def get_container_additionals(container_id: str, user: dict = Depends(verify_token)):
+    """Get additionals for a specific container with reason codes"""
+    count = random.randint(1, 5)
+    return generate_container_additionals(container_id, count)
+
 @api_router.get("/containers/locations/all", response_model=List[ContainerLocation])
 async def get_all_container_locations(user: dict = Depends(verify_token)):
     """Get all container locations for map display"""
