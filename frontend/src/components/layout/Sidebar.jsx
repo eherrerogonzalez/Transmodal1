@@ -13,7 +13,8 @@ import {
   Ship,
   ChevronLeft,
   ChevronRight,
-  Calculator
+  Calculator,
+  Warehouse
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
