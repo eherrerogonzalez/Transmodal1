@@ -29,6 +29,7 @@ function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/containers" element={<Containers />} />
             <Route path="/map" element={<ContainerMap />} />
+            <Route path="/planning" element={<Planning />} />
             <Route path="/additionals" element={<Additionals />} />
             <Route path="/account" element={<AccountStatement />} />
           </Route>
