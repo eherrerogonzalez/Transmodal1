@@ -204,6 +204,56 @@ CEDIS_LOCATIONS = ["CEDIS Guadalajara", "CEDIS CDMX", "CEDIS Monterrey", "CEDIS 
 TERMINALS = ["Terminal APM", "Terminal ICAVE", "Terminal SSA", "Terminal Hutchison"]
 INTERMODAL_TERMINALS = ["Terminal Intermodal Pantaco", "Terminal Intermodal San Luis Potosí", "Terminal Ferromex GDL"]
 
+# Additional types with reason codes
+ADDITIONAL_TYPES = [
+    {"type": "DEMORA", "code": "DEM001", "description": "Demora en puerto - día adicional"},
+    {"type": "DEMORA", "code": "DEM002", "description": "Demora en terminal intermodal"},
+    {"type": "DEMORA", "code": "DEM003", "description": "Demora por inspección aduanal"},
+    {"type": "ALMACENAJE", "code": "ALM001", "description": "Almacenaje extendido en puerto"},
+    {"type": "ALMACENAJE", "code": "ALM002", "description": "Almacenaje en terminal destino"},
+    {"type": "ALMACENAJE", "code": "ALM003", "description": "Almacenaje en CEDIS"},
+    {"type": "MANIOBRA", "code": "MAN001", "description": "Maniobra especial de carga"},
+    {"type": "MANIOBRA", "code": "MAN002", "description": "Maniobra de descarga con grúa"},
+    {"type": "MANIOBRA", "code": "MAN003", "description": "Volteo de contenedor"},
+    {"type": "INSPECCION", "code": "INS001", "description": "Inspección aduanal adicional"},
+    {"type": "INSPECCION", "code": "INS002", "description": "Fumigación de contenedor"},
+    {"type": "INSPECCION", "code": "INS003", "description": "Revisión fitosanitaria"},
+    {"type": "TRANSPORTE", "code": "TRA001", "description": "Transporte terrestre urgente"},
+    {"type": "TRANSPORTE", "code": "TRA002", "description": "Cambio de ruta de entrega"},
+    {"type": "TRANSPORTE", "code": "TRA003", "description": "Entrega en horario especial"},
+    {"type": "SEGURO", "code": "SEG001", "description": "Seguro adicional de carga"},
+    {"type": "SEGURO", "code": "SEG002", "description": "Cobertura por daños"},
+    {"type": "DOCUMENTACION", "code": "DOC001", "description": "Gestión documental adicional"},
+    {"type": "DOCUMENTACION", "code": "DOC002", "description": "Corrección de BL"},
+]
+
+def generate_container_additionals(container_id: str, count: int = None):
+    """Generate random additionals for a container"""
+    if count is None:
+        count = random.randint(0, 4)
+    
+    if count == 0:
+        return []
+    
+    additionals = []
+    selected_types = random.sample(ADDITIONAL_TYPES, min(count, len(ADDITIONAL_TYPES)))
+    
+    for add_type in selected_types:
+        status = random.choice(["pending", "pending", "approved", "rejected"])
+        requested_at = datetime.now(timezone.utc) - timedelta(days=random.randint(1, 10))
+        
+        additionals.append(ContainerAdditional(
+            type=add_type["type"],
+            reason_code=add_type["code"],
+            reason_description=add_type["description"],
+            amount=round(random.uniform(150, 3500), 2),
+            status=status,
+            requested_at=requested_at.isoformat(),
+            approved_at=(requested_at + timedelta(days=random.randint(1, 3))).isoformat() if status == "approved" else None
+        ))
+    
+    return additionals
+
 def generate_tracking_events(container_status: str, transport_mode: str):
     """Generate realistic tracking events based on container status and transport mode"""
     from datetime import timedelta
