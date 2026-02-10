@@ -12,7 +12,8 @@ import {
   X,
   Ship,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Calculator
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
