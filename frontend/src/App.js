@@ -15,6 +15,8 @@ import Additionals from "./pages/Additionals";
 import AccountStatement from "./pages/AccountStatement";
 import Planning from "./pages/Planning";
 import Inventory from "./pages/Inventory";
+import OrderConfirmations from "./pages/OrderConfirmations";
+import CreateOrder from "./pages/CreateOrder";
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/orders/new" element={<CreateOrder />} />
+            <Route path="/confirmations" element={<OrderConfirmations />} />
             <Route path="/containers" element={<Containers />} />
             <Route path="/map" element={<ContainerMap />} />
             <Route path="/inventory" element={<Inventory />} />
