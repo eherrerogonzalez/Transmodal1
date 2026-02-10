@@ -64,4 +64,10 @@ export const getAccountStatement = () => api.get('/account-statement');
 export const getHistoricalData = () => api.get('/planning/historical');
 export const getPlanningForecast = (doors = 8) => api.get(`/planning/forecast?doors=${doors}`);
 
+// Inventory
+export const getInventory = () => api.get('/inventory');
+export const getContainersByProduct = () => api.get('/inventory/containers');
+export const getRestockPlan = (doors = 8) => api.get(`/inventory/restock-plan?doors=${doors}`);
+export const updateMinStock = (sku, minStock) => api.put(`/inventory/${sku}/min-stock`, { min_stock: minStock });
+
 export default api;
