@@ -604,6 +604,20 @@ END_CLIENT_CITIES = {
     "Golfo": ["Veracruz", "Coatzacoalcos", "Tampico", "Xalapa"],
 }
 
+# Tiempos de distribución desde CEDIS a cada región (en días)
+DISTRIBUTION_TIMES = {
+    "Norte": 2,      # CEDIS → Monterrey, etc.
+    "Noreste": 2,
+    "Centro": 1,     # CEDIS está en centro
+    "Sur": 3,
+    "Occidente": 1,
+    "Golfo": 2,
+}
+
+def get_distribution_time(region: str) -> int:
+    """Get distribution time from CEDIS to a region"""
+    return DISTRIBUTION_TIMES.get(region, 2)
+
 def generate_end_client_inventory(client_name: str = None):
     """Generate inventory data for end clients (retailers)"""
     inventory_data = []
