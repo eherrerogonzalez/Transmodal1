@@ -1577,6 +1577,9 @@ async def create_product(product: NewProductRequest, user: dict = Depends(verify
     # Save to MongoDB
     await db.products.insert_one(new_product)
     
+    # Remove MongoDB _id from response
+    new_product.pop("_id", None)
+    
     return {
         "success": True,
         "message": f"Producto {product.name} creado exitosamente",
