@@ -3,15 +3,9 @@ import { sendChatMessage } from '../lib/api';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ScrollArea } from './ui/scroll-area';
-import { MessageCircle, X, Send, Bot, User, Minimize2, BarChart3, Table, PieChart } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart as RechartsPie, Pie, Cell
-} from 'recharts';
+import { MessageCircle, X, Send, Bot, User, Minimize2 } from 'lucide-react';
 
-const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
-
-// Simple Table Component
+// Simple Table Component for Data Display
 const DataTable = ({ title, columns, data, highlightRows = [] }) => (
   <div className="bg-white rounded-lg border border-slate-200 overflow-hidden my-2">
     <div className="bg-slate-50 px-3 py-2 border-b border-slate-200">
@@ -52,66 +46,92 @@ const DataTable = ({ title, columns, data, highlightRows = [] }) => (
   </div>
 );
 
-// Bar Chart Component
-const DataBarChart = ({ title, labels, datasets }) => {
-  const chartData = labels.map((label, idx) => {
-    const item = { name: label };
-    datasets.forEach(ds => {
-      item[ds.label] = ds.data[idx];
-    });
-    return item;
-  });
-
+// Simple Bar Chart using div bars
+const SimpleBarChart = ({ title, labels, datasets }) => {
+  const maxValue = Math.max(...datasets.flatMap(ds => ds.data));
+  const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b'];
+  
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-3 my-2">
-      <h4 className="font-semibold text-sm text-slate-800 mb-2">{title}</h4>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip contentStyle={{ fontSize: 11 }} />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
-          {datasets.map((ds, idx) => (
-            <Bar key={ds.label} dataKey={ds.label} fill={ds.color || COLORS[idx % COLORS.length]} />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <h4 className="font-semibold text-sm text-slate-800 mb-3">{title}</h4>
+      <div className="space-y-2">
+        {labels.map((label, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs w-20 truncate text-slate-600">{label}</span>
+            <div className="flex-1 flex gap-1">
+              {datasets.map((ds, dsIdx) => {
+                const width = maxValue > 0 ? (ds.data[idx] / maxValue) * 100 : 0;
+                return (
+                  <div
+                    key={dsIdx}
+                    className="h-4 rounded-sm transition-all"
+                    style={{ 
+                      width: `${width}%`, 
+                      backgroundColor: ds.color || colors[dsIdx % colors.length],
+                      minWidth: width > 0 ? '8px' : '0'
+                    }}
+                    title={`${ds.label}: ${ds.data[idx].toLocaleString()}`}
+                  />
+                );
+              })}
+            </div>
+            <span className="text-xs text-slate-500 w-12 text-right">
+              {datasets[0].data[idx].toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-4 mt-3 pt-2 border-t border-slate-100">
+        {datasets.map((ds, idx) => (
+          <div key={idx} className="flex items-center gap-1">
+            <div 
+              className="w-3 h-3 rounded-sm" 
+              style={{ backgroundColor: ds.color || colors[idx % colors.length] }}
+            />
+            <span className="text-xs text-slate-500">{ds.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
 
-// Pie Chart Component
-const DataPieChart = ({ title, labels, data, colors }) => {
-  const chartData = labels.map((label, idx) => ({
-    name: label,
-    value: data[idx]
-  }));
-  const pieColors = colors || COLORS;
+// Simple Pie Chart using CSS
+const SimplePieChart = ({ title, labels, data, colors: customColors }) => {
+  const total = data.reduce((sum, val) => sum + val, 0);
+  const colors = customColors || ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
+  
+  let cumulative = 0;
+  const segments = data.map((value, idx) => {
+    const percentage = (value / total) * 100;
+    const start = cumulative;
+    cumulative += percentage;
+    return { value, percentage, start, color: colors[idx % colors.length], label: labels[idx] };
+  });
+
+  const gradient = segments.map(seg => 
+    `${seg.color} ${seg.start}% ${seg.start + seg.percentage}%`
+  ).join(', ');
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-3 my-2">
-      <h4 className="font-semibold text-sm text-slate-800 mb-2">{title}</h4>
-      <ResponsiveContainer width="100%" height={180}>
-        <RechartsPie>
-          <Pie
-            data={chartData}
-            cx="50%"
-            cy="50%"
-            innerRadius={40}
-            outerRadius={70}
-            paddingAngle={2}
-            dataKey="value"
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-            labelLine={false}
-          >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
-            ))}
-          </Pie>
-          <Tooltip />
-        </RechartsPie>
-      </ResponsiveContainer>
+      <h4 className="font-semibold text-sm text-slate-800 mb-3">{title}</h4>
+      <div className="flex items-center gap-4">
+        <div 
+          className="w-24 h-24 rounded-full flex-shrink-0"
+          style={{ background: `conic-gradient(${gradient})` }}
+        />
+        <div className="space-y-1">
+          {segments.map((seg, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: seg.color }} />
+              <span className="text-xs text-slate-600">
+                {seg.label}: {seg.value} ({seg.percentage.toFixed(1)}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -136,10 +156,10 @@ const DataVisualization = ({ data }) => {
 
   if (data.type === 'chart') {
     if (data.chart_type === 'bar') {
-      return <DataBarChart {...data} />;
+      return <SimpleBarChart {...data} />;
     }
     if (data.chart_type === 'pie') {
-      return <DataPieChart {...data} />;
+      return <SimplePieChart {...data} />;
     }
   }
 
@@ -160,7 +180,7 @@ const Chatbot = () => {
   const [messages, setMessages] = useState([
     { 
       role: 'assistant', 
-      content: '¡Hola! Soy el asistente inteligente de Transmodal. Puedo ayudarte con:\n\n• Consultas de inventario y stock\n• Reportes de clientes finales (Walmart, Costco, etc.)\n• Gráficos y análisis de datos\n• Estado de pedidos y distribuciones\n• Rutas y tiempos de tránsito\n\n¿En qué puedo ayudarte?',
+      content: '¡Hola! Soy el asistente inteligente de Transmodal con acceso a datos en tiempo real.\n\nPuedo ayudarte con:\n• Reportes de inventario y stock\n• Gráficos y análisis de datos\n• Info de clientes (Walmart, Costco, etc.)\n• Estado de pedidos y distribuciones\n• Rutas y tiempos de tránsito\n\n¿En qué puedo ayudarte?',
       data: null
     }
   ]);
@@ -194,7 +214,7 @@ const Chatbot = () => {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: response.data.response,
-        data: response.data.data  // Chart/table data
+        data: response.data.data
       }]);
     } catch (error) {
       setMessages(prev => [...prev, { 
@@ -216,7 +236,7 @@ const Chatbot = () => {
 
   const quickQueries = [
     { label: '📊 Inventario', query: 'Dame un reporte del inventario actual' },
-    { label: '📈 Gráfico Stock', query: 'Muéstrame un gráfico del estado del inventario' },
+    { label: '📈 Gráfico', query: 'Muéstrame un gráfico del estado del inventario' },
     { label: '🏪 Clientes', query: 'Resumen de clientes finales' },
     { label: '⚠️ Críticos', query: 'Productos en estado crítico' },
   ];
@@ -236,7 +256,7 @@ const Chatbot = () => {
   return (
     <div 
       className={`fixed bottom-6 right-6 bg-white rounded-lg shadow-2xl z-50 flex flex-col border border-slate-200 transition-all ${
-        isMinimized ? 'w-80 h-14' : 'w-[450px] h-[600px]'
+        isMinimized ? 'w-80 h-14' : 'w-[420px] h-[550px]'
       }`}
       data-testid="chatbot-window"
     >
@@ -245,8 +265,8 @@ const Chatbot = () => {
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5" />
           <div>
-            <span className="font-semibold">Asistente Transmodal</span>
-            <span className="text-xs text-blue-200 ml-2">con datos en tiempo real</span>
+            <span className="font-semibold text-sm">Asistente Transmodal</span>
+            <span className="text-xs text-blue-200 ml-1">• En vivo</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -280,7 +300,6 @@ const Chatbot = () => {
                 size="sm"
                 onClick={() => {
                   setInput(q.query);
-                  setTimeout(() => handleSend(), 100);
                 }}
                 className="text-xs whitespace-nowrap h-7 px-2"
                 disabled={isLoading}
@@ -308,7 +327,7 @@ const Chatbot = () => {
                           : 'bg-slate-100 text-slate-800 rounded-bl-none'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                      <div className="whitespace-pre-wrap text-xs">{msg.content}</div>
                     </div>
                     {msg.role === 'user' && (
                       <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
@@ -316,7 +335,6 @@ const Chatbot = () => {
                       </div>
                     )}
                   </div>
-                  {/* Render data visualization if present */}
                   {msg.data && msg.role === 'assistant' && (
                     <div className="ml-9 mt-1">
                       <DataVisualization data={msg.data} />
@@ -344,7 +362,7 @@ const Chatbot = () => {
           {/* Suggestions */}
           <div className="px-3 py-1 border-t border-slate-100">
             <p className="text-[10px] text-slate-400">
-              Prueba: "gráfico de inventario por marca", "reporte de Walmart", "productos críticos"
+              Prueba: "gráfico por marca", "reporte de Walmart", "productos críticos"
             </p>
           </div>
 
