@@ -1709,6 +1709,241 @@ async def get_warehouse_map(user: dict = Depends(verify_token)):
     
     return {"warehouse_map": warehouse_map}
 
+# ==================== TRANSIT PLANNING & RESTOCK PREDICTIONS ====================
+
+@api_router.get("/planning/transit-routes")
+async def get_transit_routes(user: dict = Depends(verify_token)):
+    """Get available transit routes with lead times"""
+    routes = []
+    for r in TRANSIT_ROUTES:
+        total_lead = r["transit_days"] + r["port_days"] + r["customs_days"] + r["inland_days"]
+        routes.append({
+            "route_id": str(uuid.uuid4()),
+            "origin": r["origin"],
+            "destination": r["destination"],
+            "transport_mode": r["mode"],
+            "transit_days": r["transit_days"],
+            "port_handling_days": r["port_days"],
+            "customs_days": r["customs_days"],
+            "inland_transport_days": r["inland_days"],
+            "total_lead_time_days": total_lead,
+            "cost_per_container": r["cost"]
+        })
+    return {"routes": routes, "total": len(routes)}
+
+@api_router.get("/planning/restock-predictions")
+async def get_restock_predictions(user: dict = Depends(verify_token)):
+    """Get predictions for when to order products based on transit time"""
+    inventory = generate_cedis_inventory()
+    predictions = generate_restock_predictions(inventory)
+    
+    # Summary stats
+    immediate_count = len([p for p in predictions if p.urgency_level == "immediate"])
+    soon_count = len([p for p in predictions if p.urgency_level == "soon"])
+    
+    return {
+        "predictions": [p.model_dump() for p in predictions],
+        "summary": {
+            "total_products": len(predictions),
+            "immediate_action_required": immediate_count,
+            "order_soon": soon_count,
+            "avg_lead_time_days": round(sum(p.transit_time_days for p in predictions) / len(predictions), 1) if predictions else 0
+        },
+        "routes_used": list(set(p.suggested_origin for p in predictions))
+    }
+
+@api_router.get("/planning/restock-timeline")
+async def get_restock_timeline(days: int = 30, user: dict = Depends(verify_token)):
+    """Get timeline view of when orders need to be placed and expected deliveries"""
+    inventory = generate_cedis_inventory()
+    predictions = generate_restock_predictions(inventory)
+    
+    # Create timeline for next N days
+    timeline = []
+    today = datetime.now(timezone.utc).date()
+    
+    for day_offset in range(days):
+        current_date = today + timedelta(days=day_offset)
+        date_str = current_date.strftime("%Y-%m-%d")
+        
+        # Orders to place on this day
+        orders_to_place = [p for p in predictions if p.reorder_point_date == date_str]
+        # Deliveries expected on this day
+        deliveries_expected = [p for p in predictions if p.expected_delivery_date == date_str]
+        
+        if orders_to_place or deliveries_expected:
+            timeline.append({
+                "date": date_str,
+                "day_name": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"][current_date.weekday()],
+                "orders_to_place": [{
+                    "sku": o.sku,
+                    "product_name": o.product_name,
+                    "brand": o.brand,
+                    "quantity": o.recommended_quantity,
+                    "origin": o.suggested_origin,
+                    "urgency": o.urgency_level
+                } for o in orders_to_place],
+                "deliveries_expected": [{
+                    "sku": d.sku,
+                    "product_name": d.product_name,
+                    "brand": d.brand,
+                    "quantity": d.recommended_quantity
+                } for d in deliveries_expected],
+                "orders_count": len(orders_to_place),
+                "deliveries_count": len(deliveries_expected)
+            })
+    
+    return {
+        "timeline": timeline,
+        "period_days": days,
+        "total_orders_planned": sum(len(t["orders_to_place"]) for t in timeline),
+        "total_deliveries_expected": sum(len(t["deliveries_expected"]) for t in timeline)
+    }
+
+# ==================== END CLIENT INVENTORY (WALMART, ETC.) ====================
+
+@api_router.get("/inventory/end-clients")
+async def get_end_clients_list(user: dict = Depends(verify_token)):
+    """Get list of end clients (retailers) we track inventory for"""
+    clients = []
+    for client in END_CLIENTS:
+        total_stores = sum(1 for r in client["regions"]) * client["stores_per_region"]
+        clients.append({
+            "name": client["name"],
+            "code_prefix": client["code_prefix"],
+            "regions": client["regions"],
+            "total_stores": total_stores
+        })
+    return {"clients": clients, "total": len(clients)}
+
+@api_router.get("/inventory/end-clients/{client_name}")
+async def get_end_client_inventory(client_name: str, user: dict = Depends(verify_token)):
+    """Get inventory details for a specific end client (e.g., Walmart)"""
+    # Validate client exists
+    client = next((c for c in END_CLIENTS if c["name"].lower() == client_name.lower()), None)
+    if not client:
+        raise HTTPException(status_code=404, detail=f"Cliente {client_name} no encontrado")
+    
+    inventory = generate_end_client_inventory(client["name"])
+    
+    # Group by store
+    stores = {}
+    for item in inventory:
+        if item.store_code not in stores:
+            stores[item.store_code] = {
+                "store_code": item.store_code,
+                "store_name": item.store_name,
+                "products": [],
+                "needs_restock_count": 0,
+                "critical_count": 0
+            }
+        stores[item.store_code]["products"].append(item.model_dump())
+        if item.needs_restock:
+            stores[item.store_code]["needs_restock_count"] += 1
+        if item.days_of_stock <= 3:
+            stores[item.store_code]["critical_count"] += 1
+    
+    stores_list = sorted(stores.values(), key=lambda x: x["critical_count"], reverse=True)
+    
+    # Summary
+    total_needs_restock = len([i for i in inventory if i.needs_restock])
+    critical = len([i for i in inventory if i.days_of_stock <= 3])
+    
+    return {
+        "client_name": client["name"],
+        "stores": stores_list,
+        "summary": EndClientSummary(
+            client_name=client["name"],
+            total_locations=len(stores),
+            products_tracked=len(inventory),
+            locations_needing_restock=len([s for s in stores_list if s["needs_restock_count"] > 0]),
+            critical_stockouts=critical,
+            total_units_to_ship=sum(i.suggested_quantity for i in inventory if i.needs_restock)
+        ).model_dump(),
+        "regions": client["regions"]
+    }
+
+@api_router.get("/inventory/end-clients/{client_name}/summary")
+async def get_end_client_summary(client_name: str, user: dict = Depends(verify_token)):
+    """Get summary of inventory needs for an end client"""
+    client = next((c for c in END_CLIENTS if c["name"].lower() == client_name.lower()), None)
+    if not client:
+        raise HTTPException(status_code=404, detail=f"Cliente {client_name} no encontrado")
+    
+    inventory = generate_end_client_inventory(client["name"])
+    
+    # Group by product SKU for aggregation
+    product_summary = {}
+    for item in inventory:
+        if item.sku not in product_summary:
+            product_summary[item.sku] = {
+                "sku": item.sku,
+                "product_name": item.product_name,
+                "brand": item.brand,
+                "total_stores": 0,
+                "stores_needing_restock": 0,
+                "total_current_stock": 0,
+                "total_suggested_restock": 0,
+                "avg_days_of_stock": 0,
+                "critical_stores": 0
+            }
+        product_summary[item.sku]["total_stores"] += 1
+        product_summary[item.sku]["total_current_stock"] += item.current_stock
+        if item.needs_restock:
+            product_summary[item.sku]["stores_needing_restock"] += 1
+            product_summary[item.sku]["total_suggested_restock"] += item.suggested_quantity
+        if item.days_of_stock <= 3:
+            product_summary[item.sku]["critical_stores"] += 1
+        product_summary[item.sku]["avg_days_of_stock"] += item.days_of_stock
+    
+    # Calculate averages
+    for sku, data in product_summary.items():
+        data["avg_days_of_stock"] = round(data["avg_days_of_stock"] / data["total_stores"], 1)
+    
+    # Sort by critical stores
+    products_list = sorted(product_summary.values(), key=lambda x: x["critical_stores"], reverse=True)
+    
+    return {
+        "client_name": client["name"],
+        "products": products_list,
+        "total_products": len(products_list),
+        "products_needing_restock": len([p for p in products_list if p["stores_needing_restock"] > 0]),
+        "total_restock_units": sum(p["total_suggested_restock"] for p in products_list)
+    }
+
+@api_router.get("/inventory/end-clients-overview")
+async def get_all_end_clients_overview(user: dict = Depends(verify_token)):
+    """Get overview of all end clients' inventory status"""
+    overview = []
+    
+    for client in END_CLIENTS:
+        inventory = generate_end_client_inventory(client["name"])
+        
+        total_stores = len(set(i.store_code for i in inventory))
+        needs_restock = len([i for i in inventory if i.needs_restock])
+        critical = len([i for i in inventory if i.days_of_stock <= 3])
+        
+        overview.append({
+            "client_name": client["name"],
+            "total_stores": total_stores,
+            "products_tracked": len(inventory),
+            "items_needing_restock": needs_restock,
+            "critical_stockouts": critical,
+            "restock_urgency": "critical" if critical > 10 else "high" if needs_restock > 20 else "normal",
+            "total_units_to_ship": sum(i.suggested_quantity for i in inventory if i.needs_restock)
+        })
+    
+    # Sort by urgency
+    urgency_order = {"critical": 0, "high": 1, "normal": 2}
+    overview.sort(key=lambda x: (urgency_order.get(x["restock_urgency"], 3), -x["critical_stockouts"]))
+    
+    return {
+        "clients": overview,
+        "total_clients": len(overview),
+        "total_critical_items": sum(c["critical_stockouts"] for c in overview),
+        "total_restock_items": sum(c["items_needing_restock"] for c in overview)
+    }
+
 # ==================== APPOINTMENTS ENDPOINTS ====================
 
 @api_router.post("/appointments")
