@@ -340,6 +340,7 @@ async def get_containers(user: dict = Depends(verify_token)):
         origin_port = random.choice(PORTS)
         dest_port = random.choice([p for p in PORTS if p != origin_port])
         status = random.choice(CONTAINER_STATUSES)
+        transport_mode = random.choice(TRANSPORT_MODES)
         
         # Calculate position based on status
         if status == "En Puerto Origen":
@@ -362,7 +363,8 @@ async def get_containers(user: dict = Depends(verify_token)):
             vessel_name=random.choice(VESSELS) if status == "En Tránsito" else None,
             eta=(datetime.now(timezone.utc).isoformat() if status != "Entregado" else None),
             latitude=lat,
-            longitude=lng
+            longitude=lng,
+            transport_mode=transport_mode
         ))
     return containers
 
@@ -384,7 +386,22 @@ async def get_container(container_id: str, user: dict = Depends(verify_token)):
         vessel_name=random.choice(VESSELS),
         eta=datetime.now(timezone.utc).isoformat(),
         latitude=origin_port["lat"],
-        longitude=origin_port["lng"]
+        longitude=origin_port["lng"],
+        transport_mode=random.choice(TRANSPORT_MODES)
+    )
+
+@api_router.get("/containers/{container_id}/tracking", response_model=ContainerTracking)
+async def get_container_tracking(container_id: str, user: dict = Depends(verify_token)):
+    """Get detailed tracking timeline for a container"""
+    status = random.choice(CONTAINER_STATUSES)
+    transport_mode = random.choice(TRANSPORT_MODES)
+    
+    events = generate_tracking_events(status, transport_mode)
+    
+    return ContainerTracking(
+        container_id=container_id,
+        transport_mode=transport_mode,
+        events=events
     )
 
 @api_router.get("/containers/locations/all", response_model=List[ContainerLocation])
