@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getContainers } from '../lib/api';
+import { getContainers, getContainerTracking } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { 
   Select, 
@@ -11,6 +12,12 @@ import {
   SelectValue 
 } from '../components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -18,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import { ScrollArea } from '../components/ui/scroll-area';
 import { 
   Search, 
   Filter,
@@ -26,7 +34,17 @@ import {
   Anchor,
   CheckCircle,
   Clock,
-  MapPin
+  MapPin,
+  Eye,
+  Train,
+  Truck,
+  Calendar,
+  FileText,
+  Building,
+  ArrowRight,
+  Circle,
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,12 +71,182 @@ const statusConfig = {
   },
 };
 
+const transportModeConfig = {
+  'maritime': { label: 'Marítimo', icon: Ship, color: 'text-blue-600' },
+  'intermodal_train': { label: 'Intermodal (Tren)', icon: Train, color: 'text-purple-600' },
+  'truck': { label: 'Terrestre', icon: Truck, color: 'text-amber-600' },
+};
+
+const trackingEventIcons = {
+  'vessel_arrival': Ship,
+  'customs_request': FileText,
+  'terminal_departure': Building,
+  'intermodal_arrival': Train,
+  'intermodal_departure': Train,
+  'cedis_appointment': Calendar,
+  'cedis_arrival': Building,
+  'warehouse_departure': Package,
+  'empty_return': Package,
+};
+
+const TrackingTimeline = ({ tracking, loading }) => {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!tracking) {
+    return (
+      <div className="text-center py-12 text-slate-500">
+        No hay información de tracking disponible
+      </div>
+    );
+  }
+
+  const transportConfig = transportModeConfig[tracking.transport_mode] || transportModeConfig.maritime;
+  const TransportIcon = transportConfig.icon;
+
+  return (
+    <div className="space-y-6">
+      {/* Transport Mode Badge */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-sm">
+        <TransportIcon className={`w-5 h-5 ${transportConfig.color}`} />
+        <span className="text-sm font-medium text-slate-700">
+          Modo de Transporte: {transportConfig.label}
+        </span>
+      </div>
+
+      {/* Timeline */}
+      <div className="relative">
+        {tracking.events.map((event, index) => {
+          const EventIcon = trackingEventIcons[event.event_key] || Circle;
+          const isLast = index === tracking.events.length - 1;
+          
+          let statusStyles = {};
+          let dotStyles = {};
+          
+          if (event.status === 'completed') {
+            statusStyles = { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' };
+            dotStyles = { bg: 'bg-emerald-500', ring: 'ring-emerald-100' };
+          } else if (event.status === 'in_progress') {
+            statusStyles = { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' };
+            dotStyles = { bg: 'bg-blue-500', ring: 'ring-blue-100' };
+          } else {
+            statusStyles = { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500' };
+            dotStyles = { bg: 'bg-slate-300', ring: 'ring-slate-100' };
+          }
+
+          return (
+            <div key={event.event_key} className="relative flex gap-4 pb-8">
+              {/* Timeline line */}
+              {!isLast && (
+                <div 
+                  className={`absolute left-[15px] top-[32px] w-0.5 h-[calc(100%-16px)] ${
+                    event.status === 'completed' ? 'bg-emerald-300' : 'bg-slate-200'
+                  }`}
+                />
+              )}
+              
+              {/* Timeline dot */}
+              <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full ${dotStyles.bg} ring-4 ${dotStyles.ring} flex items-center justify-center`}>
+                {event.status === 'completed' ? (
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                ) : event.status === 'in_progress' ? (
+                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                ) : (
+                  <Circle className="w-3 h-3 text-white" />
+                )}
+              </div>
+              
+              {/* Event content */}
+              <div className={`flex-1 p-4 rounded-sm border ${statusStyles.border} ${statusStyles.bg} transition-all hover:shadow-sm`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <EventIcon className={`w-4 h-4 ${statusStyles.text}`} />
+                      <h4 className={`font-semibold ${event.status === 'pending' ? 'text-slate-500' : 'text-slate-900'}`}>
+                        {event.event_name}
+                      </h4>
+                      {event.status === 'in_progress' && (
+                        <Badge className="bg-blue-100 text-blue-700 text-xs">En Proceso</Badge>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-1 text-sm">
+                      {event.location && (
+                        <div className="flex items-center gap-2 text-slate-600">
+                          <MapPin className="w-3 h-3" />
+                          <span>{event.location}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-4 mt-2">
+                        {event.scheduled_date && (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span className="text-slate-500">
+                              Programado: {new Date(event.scheduled_date).toLocaleString('es-MX', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {event.actual_date && (
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle className="w-3 h-3 text-emerald-500" />
+                            <span className="text-emerald-600 font-medium">
+                              Real: {new Date(event.actual_date).toLocaleString('es-MX', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {event.notes && (
+                        <p className="text-xs text-slate-400 mt-2">{event.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Status indicator */}
+                  <div className={`px-2 py-1 rounded text-xs font-medium ${statusStyles.text} ${statusStyles.bg} border ${statusStyles.border}`}>
+                    {event.status === 'completed' ? 'Completado' : event.status === 'in_progress' ? 'En Proceso' : 'Pendiente'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const Containers = () => {
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  
+  // Tracking modal state
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [selectedContainer, setSelectedContainer] = useState(null);
+  const [tracking, setTracking] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
 
   useEffect(() => {
     fetchContainers();
@@ -73,6 +261,22 @@ const Containers = () => {
       toast.error('Error al cargar los contenedores');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewTracking = async (container) => {
+    setSelectedContainer(container);
+    setShowTrackingModal(true);
+    setTrackingLoading(true);
+    
+    try {
+      const response = await getContainerTracking(container.id);
+      setTracking(response.data);
+    } catch (error) {
+      console.error('Error fetching tracking:', error);
+      toast.error('Error al cargar el tracking');
+    } finally {
+      setTrackingLoading(false);
     }
   };
 
@@ -219,17 +423,20 @@ const Containers = () => {
                   Ruta
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Buque
+                  Transporte
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Estado
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                  Tracking
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredContainers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12">
+                  <TableCell colSpan={6} className="text-center py-12">
                     <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                     <p className="text-slate-500">No se encontraron contenedores</p>
                   </TableCell>
@@ -241,11 +448,13 @@ const Containers = () => {
                     icon: Package 
                   };
                   const StatusIcon = statusInfo.icon;
+                  const transportConfig = transportModeConfig[container.transport_mode] || transportModeConfig.maritime;
+                  const TransportIcon = transportConfig.icon;
                   
                   return (
                     <TableRow 
                       key={container.id}
-                      className="hover:bg-slate-50 transition-colors animate-fade-in"
+                      className="hover:bg-slate-50 transition-colors animate-fade-in cursor-pointer"
                       style={{ animationDelay: `${index * 0.03}s` }}
                     >
                       <TableCell className="font-mono font-medium text-slate-900">
@@ -260,11 +469,16 @@ const Containers = () => {
                       <TableCell className="text-slate-600">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-slate-400" />
-                          <span>{container.origin} → {container.destination}</span>
+                          <span>{container.origin}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-300" />
+                          <span>{container.destination}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-slate-600">
-                        {container.vessel_name || '-'}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <TransportIcon className={`w-4 h-4 ${transportConfig.color}`} />
+                          <span className="text-sm text-slate-600">{transportConfig.label}</span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -275,6 +489,18 @@ const Containers = () => {
                           {container.status}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-sm"
+                          onClick={() => handleViewTracking(container)}
+                          data-testid={`view-tracking-${container.id}`}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Ver Tracking
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -283,6 +509,55 @@ const Containers = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Tracking Modal */}
+      <Dialog open={showTrackingModal} onOpenChange={setShowTrackingModal}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-3">
+              <Package className="w-6 h-6 text-blue-600" />
+              Tracking Detallado
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedContainer && (
+            <div className="space-y-4">
+              {/* Container Info Header */}
+              <div className="p-4 bg-slate-50 rounded-sm border border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-slate-500 uppercase tracking-wider">Contenedor</p>
+                    <p className="text-lg font-mono font-bold text-slate-900">{selectedContainer.container_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 uppercase tracking-wider">Ruta</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {selectedContainer.origin} → {selectedContainer.destination}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 uppercase tracking-wider">Tipo</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {selectedContainer.type} - {selectedContainer.size}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant="outline" 
+                    className={`rounded-sm ${statusConfig[selectedContainer.status]?.color || 'bg-slate-50'}`}
+                  >
+                    {selectedContainer.status}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <ScrollArea className="h-[450px] pr-4">
+                <TrackingTimeline tracking={tracking} loading={trackingLoading} />
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
