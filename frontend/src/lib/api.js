@@ -77,6 +77,17 @@ export const createProduct = (data) => api.post('/inventory/products', data);
 export const getWarehouseZones = () => api.get('/warehouse/zones');
 export const getWarehouseMap = () => api.get('/warehouse/map');
 
+// Transit Planning & Restock Predictions
+export const getTransitRoutes = () => api.get('/planning/transit-routes');
+export const getRestockPredictions = () => api.get('/planning/restock-predictions');
+export const getRestockTimeline = (days = 30) => api.get(`/planning/restock-timeline?days=${days}`);
+
+// End Client Inventory (Walmart, Costco, etc.)
+export const getEndClientsList = () => api.get('/inventory/end-clients');
+export const getEndClientInventory = (clientName) => api.get(`/inventory/end-clients/${encodeURIComponent(clientName)}`);
+export const getEndClientSummary = (clientName) => api.get(`/inventory/end-clients/${encodeURIComponent(clientName)}/summary`);
+export const getEndClientsOverview = () => api.get('/inventory/end-clients-overview');
+
 // Appointments
 export const getAppointments = (date, status) => {
   let url = '/appointments';
