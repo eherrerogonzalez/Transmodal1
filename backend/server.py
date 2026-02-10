@@ -998,6 +998,190 @@ async def get_planning_forecast(
         }
     )
 
+# ==================== INVENTORY ENDPOINTS ====================
+
+@api_router.get("/inventory")
+async def get_inventory(user: dict = Depends(verify_token)):
+    """Get current CEDIS inventory with stock levels"""
+    inventory = generate_cedis_inventory()
+    
+    # Summary stats
+    critical_count = len([i for i in inventory if i.stock_status == "critical"])
+    low_count = len([i for i in inventory if i.stock_status == "low"])
+    optimal_count = len([i for i in inventory if i.stock_status == "optimal"])
+    
+    # Group by brand
+    brands_summary = {}
+    for item in inventory:
+        if item.brand not in brands_summary:
+            brands_summary[item.brand] = {"items": 0, "critical": 0, "low": 0}
+        brands_summary[item.brand]["items"] += 1
+        if item.stock_status == "critical":
+            brands_summary[item.brand]["critical"] += 1
+        elif item.stock_status == "low":
+            brands_summary[item.brand]["low"] += 1
+    
+    return {
+        "inventory": [i.model_dump() for i in inventory],
+        "summary": {
+            "total_products": len(inventory),
+            "critical": critical_count,
+            "low": low_count,
+            "optimal": optimal_count,
+            "needs_restock": critical_count + low_count
+        },
+        "brands_summary": brands_summary
+    }
+
+@api_router.get("/inventory/containers")
+async def get_containers_by_product(user: dict = Depends(verify_token)):
+    """Get containers in transit with product information, sorted by restock priority"""
+    inventory = generate_cedis_inventory()
+    containers = generate_containers_with_products(inventory)
+    
+    # Group containers by product
+    products_in_transit = {}
+    for c in containers:
+        if c.sku not in products_in_transit:
+            inv_item = next((i for i in inventory if i.sku == c.sku), None)
+            products_in_transit[c.sku] = {
+                "sku": c.sku,
+                "product_name": c.product_name,
+                "brand": c.brand,
+                "current_stock": inv_item.current_stock if inv_item else 0,
+                "minimum_stock": inv_item.minimum_stock if inv_item else 0,
+                "priority_score": c.priority_score,
+                "delivery_urgency": c.delivery_urgency,
+                "containers": [],
+                "total_units_in_transit": 0
+            }
+        products_in_transit[c.sku]["containers"].append(c.model_dump())
+        products_in_transit[c.sku]["total_units_in_transit"] += c.quantity
+    
+    # Convert to list and sort by priority
+    products_list = list(products_in_transit.values())
+    products_list.sort(key=lambda x: x["priority_score"], reverse=True)
+    
+    return {
+        "containers": [c.model_dump() for c in containers],
+        "products_in_transit": products_list,
+        "summary": {
+            "total_containers": len(containers),
+            "critical_deliveries": len([c for c in containers if c.delivery_urgency == "critical"]),
+            "high_priority_deliveries": len([c for c in containers if c.delivery_urgency == "high"]),
+            "products_being_restocked": len(products_in_transit)
+        }
+    }
+
+@api_router.get("/inventory/restock-plan")
+async def get_restock_plan(doors: int = 8, user: dict = Depends(verify_token)):
+    """Get complete restock plan with delivery schedule based on priority"""
+    inventory = generate_cedis_inventory()
+    containers = generate_containers_with_products(inventory)
+    
+    # Create delivery schedule prioritized by stock levels
+    warehouse = WarehouseConfig(
+        name="CEDIS Principal",
+        doors=doors,
+        max_containers_per_day=doors,
+        operating_hours="07:00-19:00",
+        working_days=["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    )
+    
+    day_names = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+    working_days_idx = [k for k, v in day_names.items() if v in warehouse.working_days]
+    
+    # Schedule containers by priority
+    schedule = []
+    containers_sorted = sorted(containers, key=lambda x: x.priority_score, reverse=True)
+    
+    current_date = datetime.now(timezone.utc)
+    day_offset = 0
+    daily_count = 0
+    
+    for container in containers_sorted:
+        # Find next available day
+        while True:
+            check_date = current_date + timedelta(days=day_offset)
+            if check_date.weekday() in working_days_idx:
+                if daily_count < warehouse.max_containers_per_day:
+                    break
+                else:
+                    day_offset += 1
+                    daily_count = 0
+            else:
+                day_offset += 1
+        
+        delivery_date = current_date + timedelta(days=day_offset)
+        
+        # Get inventory info for this product
+        inv_item = next((i for i in inventory if i.sku == container.sku), None)
+        
+        schedule.append({
+            "delivery_date": delivery_date.strftime("%Y-%m-%d"),
+            "day_name": day_names[delivery_date.weekday()],
+            "container_number": container.container_number,
+            "sku": container.sku,
+            "product_name": container.product_name,
+            "brand": container.brand,
+            "quantity": container.quantity,
+            "current_stock": inv_item.current_stock if inv_item else 0,
+            "minimum_stock": inv_item.minimum_stock if inv_item else 0,
+            "stock_after_delivery": (inv_item.current_stock if inv_item else 0) + container.quantity,
+            "priority_score": container.priority_score,
+            "delivery_urgency": container.delivery_urgency,
+            "slot_number": daily_count + 1
+        })
+        
+        daily_count += 1
+        if daily_count >= warehouse.max_containers_per_day:
+            day_offset += 1
+            daily_count = 0
+    
+    # Group by date for calendar view
+    calendar = {}
+    for item in schedule:
+        date = item["delivery_date"]
+        if date not in calendar:
+            calendar[date] = {
+                "date": date,
+                "day_name": item["day_name"],
+                "deliveries": [],
+                "total_containers": 0,
+                "capacity": warehouse.max_containers_per_day
+            }
+        calendar[date]["deliveries"].append(item)
+        calendar[date]["total_containers"] += 1
+    
+    calendar_list = sorted(calendar.values(), key=lambda x: x["date"])
+    
+    return {
+        "restock_schedule": schedule,
+        "calendar": calendar_list,
+        "warehouse_config": {
+            "doors": warehouse.doors,
+            "daily_capacity": warehouse.max_containers_per_day,
+            "operating_hours": warehouse.operating_hours
+        },
+        "summary": {
+            "total_containers_scheduled": len(schedule),
+            "days_needed": len(calendar_list),
+            "critical_products": len([s for s in schedule if s["delivery_urgency"] == "critical"]),
+            "total_units_to_receive": sum(s["quantity"] for s in schedule)
+        }
+    }
+
+@api_router.put("/inventory/{sku}/min-stock")
+async def update_min_stock(sku: str, min_stock: int, user: dict = Depends(verify_token)):
+    """Update minimum stock level for a product"""
+    # In production, this would update the database
+    return {
+        "success": True,
+        "message": f"Stock mínimo actualizado para {sku}",
+        "sku": sku,
+        "new_min_stock": min_stock
+    }
+
 @api_router.get("/containers/locations/all", response_model=List[ContainerLocation])
 async def get_all_container_locations(user: dict = Depends(verify_token)):
     """Get all container locations for map display"""
