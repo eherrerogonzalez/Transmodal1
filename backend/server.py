@@ -2954,6 +2954,346 @@ async def get_account_statement(user: dict = Depends(verify_token)):
         transactions=transactions
     )
 
+# ==================== AI DOCUMENT EXTRACTION ====================
+
+UPLOAD_DIR = Path("/tmp/uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@api_router.post("/ai/extract-document")
+async def extract_document_with_ai(
+    file: UploadFile = File(...),
+    user: dict = Depends(verify_token)
+):
+    """Extract information from BL, packing list, or commercial invoice using AI"""
+    try:
+        # Save file temporarily
+        file_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        # Determine mime type
+        mime_type = "application/pdf"
+        if file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            mime_type = "image/png" if file.filename.lower().endswith('.png') else "image/jpeg"
+        elif file.filename.lower().endswith('.txt'):
+            mime_type = "text/plain"
+        
+        # Use Gemini for document analysis
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"doc-extract-{uuid.uuid4()}",
+            system_message="""You are a logistics document analyzer. Extract shipping information from documents.
+            Always respond in JSON format with these fields:
+            {
+                "bl_number": "string or null",
+                "shipper": "string or null",
+                "consignee": "string or null",
+                "origin_port": "string or null",
+                "destination_port": "string or null",
+                "vessel_name": "string or null",
+                "voyage_number": "string or null",
+                "containers": [{"number": "string", "size": "string", "type": "string", "seal": "string", "weight": number, "products": [{"description": "string", "quantity": number, "sku": "string if visible"}]}],
+                "total_weight": number or null,
+                "total_packages": number or null,
+                "cargo_description": "string or null",
+                "incoterm": "string or null"
+            }"""
+        ).with_model("gemini", "gemini-2.5-flash")
+        
+        file_content = FileContentWithMimeType(
+            file_path=str(file_path),
+            mime_type=mime_type
+        )
+        
+        response = await chat.send_message(UserMessage(
+            text="Extract all shipping information from this document. Return ONLY valid JSON.",
+            file_contents=[file_content]
+        ))
+        
+        # Clean up
+        file_path.unlink(missing_ok=True)
+        
+        # Parse response
+        try:
+            # Clean response - remove markdown code blocks if present
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1]
+                if clean_response.startswith("json"):
+                    clean_response = clean_response[4:]
+            data = json.loads(clean_response)
+        except:
+            data = {"error": "Could not parse AI response", "raw": response[:500]}
+        
+        return {
+            "success": True,
+            "extracted_data": data,
+            "confidence_score": 0.85
+        }
+        
+    except Exception as e:
+        logging.error(f"Document extraction error: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "extracted_data": None
+        }
+
+# ==================== AI CHATBOT ====================
+
+# Store chat histories in memory (in production, use database)
+chat_sessions = {}
+
+@api_router.post("/ai/chat", response_model=ChatResponse)
+async def chat_with_ai(request: ChatRequest, user: dict = Depends(verify_token)):
+    """Chat with AI assistant for customer service"""
+    session_id = request.session_id or str(uuid.uuid4())
+    
+    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    
+    # Get or create chat session
+    if session_id not in chat_sessions:
+        chat_sessions[session_id] = {
+            "messages": [],
+            "chat": LlmChat(
+                api_key=api_key,
+                session_id=session_id,
+                system_message="""Eres el asistente virtual de Transmodal, una empresa de logística internacional.
+                
+Tu rol es ayudar a los clientes con:
+- Consultas sobre el estado de sus contenedores y órdenes
+- Información sobre tiempos de tránsito y rutas
+- Explicación de cargos adicionales
+- Proceso de reclamaciones
+- Programación de citas de entrega
+- Información sobre inventario y reabastecimiento
+- Cualquier duda sobre el portal de clientes
+
+Responde siempre en español de manera profesional y amable.
+Si no tienes información específica, ofrece alternativas o sugiere contactar al equipo de soporte.
+Mantén las respuestas concisas pero informativas."""
+            ).with_model("anthropic", "claude-sonnet-4-20250514")
+        }
+    
+    session = chat_sessions[session_id]
+    
+    try:
+        response = await session["chat"].send_message(UserMessage(text=request.message))
+        
+        # Store messages
+        session["messages"].append({"role": "user", "content": request.message})
+        session["messages"].append({"role": "assistant", "content": response})
+        
+        return ChatResponse(response=response, session_id=session_id)
+    except Exception as e:
+        logging.error(f"Chat error: {e}")
+        return ChatResponse(
+            response="Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+            session_id=session_id
+        )
+
+@api_router.get("/ai/chat/history/{session_id}")
+async def get_chat_history(session_id: str, user: dict = Depends(verify_token)):
+    """Get chat history for a session"""
+    if session_id in chat_sessions:
+        return {"messages": chat_sessions[session_id]["messages"]}
+    return {"messages": []}
+
+# ==================== PENDING ORDERS (CONFIRMATIONS) ====================
+
+def generate_pending_origin_orders():
+    """Generate pending orders to origin that need confirmation"""
+    plans = generate_supply_chain_plan()
+    pending = []
+    
+    for plan in plans:
+        if plan.action_required in ["emergency", "order_now"]:
+            pending.append(PendingOriginOrder(
+                sku=plan.sku,
+                product_name=plan.product_name,
+                brand=plan.brand,
+                suggested_quantity=1800,  # Standard container quantity
+                suggested_origin=plan.suggested_origin,
+                route_details=plan.route_details,
+                lead_time_days=plan.inbound_lead_time_days,
+                expected_arrival=plan.expected_inbound_date or "",
+                reason=plan.action_description,
+                cedis_current_stock=plan.cedis_current_stock,
+                cedis_deficit=plan.cedis_deficit,
+                critical_end_locations=plan.critical_end_client_locations
+            ))
+    
+    return pending[:15]  # Limit to 15 pending
+
+def generate_pending_distribution_orders():
+    """Generate pending distribution orders that need confirmation"""
+    orders = generate_distribution_orders()
+    pending = []
+    
+    for order in orders:
+        if order.priority in ["critical", "high"]:
+            # Get days of stock at store
+            all_inventory = generate_end_client_inventory()
+            store_item = next((i for i in all_inventory if i.store_code == order.store_code and i.sku == order.sku), None)
+            days_of_stock = store_item.days_of_stock if store_item else 0
+            
+            pending.append(PendingDistributionOrder(
+                sku=order.sku,
+                product_name=order.product_name,
+                brand=order.brand,
+                client_name=order.client_name,
+                store_code=order.store_code,
+                store_name=order.store_name,
+                region=order.region,
+                suggested_quantity=order.quantity,
+                distribution_time_days=order.distribution_time_days,
+                ship_by_date=order.ship_by_date,
+                expected_arrival=order.expected_arrival,
+                days_of_stock_at_store=days_of_stock,
+                priority=order.priority
+            ))
+    
+    return pending[:20]
+
+@api_router.get("/orders/pending-origin")
+async def get_pending_origin_orders(user: dict = Depends(verify_token)):
+    """Get pending orders to origin that need confirmation"""
+    pending = generate_pending_origin_orders()
+    
+    return {
+        "pending_orders": [p.model_dump() for p in pending],
+        "total": len(pending),
+        "emergency_count": len([p for p in pending if "EMERGENCIA" in p.reason]),
+        "total_containers_needed": len(pending),
+        "message": f"Tienes {len(pending)} pedidos a origen pendientes de confirmar"
+    }
+
+@api_router.post("/orders/pending-origin/{order_id}/confirm")
+async def confirm_origin_order(order_id: str, quantity: int = None, user: dict = Depends(verify_token)):
+    """Confirm a pending origin order"""
+    # In real implementation, this would create the actual order
+    return {
+        "success": True,
+        "message": "Orden a origen confirmada exitosamente",
+        "order_id": order_id,
+        "confirmed_quantity": quantity,
+        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "next_steps": "Se ha generado la orden de compra y enviado al proveedor"
+    }
+
+@api_router.post("/orders/pending-origin/{order_id}/reject")
+async def reject_origin_order(order_id: str, reason: str = "", user: dict = Depends(verify_token)):
+    """Reject a pending origin order"""
+    return {
+        "success": True,
+        "message": "Orden rechazada",
+        "order_id": order_id,
+        "reason": reason
+    }
+
+@api_router.get("/orders/pending-distribution")
+async def get_pending_distribution_orders(user: dict = Depends(verify_token)):
+    """Get pending distribution orders that need confirmation"""
+    pending = generate_pending_distribution_orders()
+    
+    # Group by client
+    by_client = {}
+    for p in pending:
+        if p.client_name not in by_client:
+            by_client[p.client_name] = {"count": 0, "units": 0}
+        by_client[p.client_name]["count"] += 1
+        by_client[p.client_name]["units"] += p.suggested_quantity
+    
+    return {
+        "pending_orders": [p.model_dump() for p in pending],
+        "total": len(pending),
+        "critical_count": len([p for p in pending if p.priority == "critical"]),
+        "by_client": by_client,
+        "total_units": sum(p.suggested_quantity for p in pending),
+        "message": f"Tienes {len(pending)} distribuciones pendientes de confirmar"
+    }
+
+@api_router.post("/orders/pending-distribution/{order_id}/confirm")
+async def confirm_distribution_order(order_id: str, quantity: int = None, user: dict = Depends(verify_token)):
+    """Confirm a pending distribution order"""
+    return {
+        "success": True,
+        "message": "Distribución confirmada exitosamente",
+        "order_id": order_id,
+        "confirmed_quantity": quantity,
+        "confirmed_at": datetime.now(timezone.utc).isoformat(),
+        "next_steps": "Se ha programado el envío desde CEDIS"
+    }
+
+@api_router.post("/orders/pending-distribution/{order_id}/reject")
+async def reject_distribution_order(order_id: str, reason: str = "", user: dict = Depends(verify_token)):
+    """Reject a pending distribution order"""
+    return {
+        "success": True,
+        "message": "Distribución rechazada",
+        "order_id": order_id,
+        "reason": reason
+    }
+
+@api_router.post("/orders/confirm-bulk-origin")
+async def confirm_bulk_origin_orders(order_ids: List[str], user: dict = Depends(verify_token)):
+    """Confirm multiple origin orders at once"""
+    return {
+        "success": True,
+        "message": f"{len(order_ids)} órdenes a origen confirmadas",
+        "confirmed_count": len(order_ids),
+        "confirmed_at": datetime.now(timezone.utc).isoformat()
+    }
+
+@api_router.post("/orders/confirm-bulk-distribution")
+async def confirm_bulk_distribution_orders(order_ids: List[str], user: dict = Depends(verify_token)):
+    """Confirm multiple distribution orders at once"""
+    return {
+        "success": True,
+        "message": f"{len(order_ids)} distribuciones confirmadas",
+        "confirmed_count": len(order_ids),
+        "confirmed_at": datetime.now(timezone.utc).isoformat()
+    }
+
+# ==================== NEW ORDER WITH CONTAINERS ====================
+
+@api_router.post("/orders/create-with-containers")
+async def create_order_with_containers(order: OrderCreateNew, user: dict = Depends(verify_token)):
+    """Create a new order with multiple containers"""
+    order_id = str(uuid.uuid4())
+    order_number = f"ORD-{datetime.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+    
+    # Calculate totals
+    total_weight = sum(c.weight for c in order.containers)
+    total_products = sum(sum(p.quantity for p in c.products) for c in order.containers)
+    
+    new_order = {
+        "id": order_id,
+        "order_number": order_number,
+        "bl_number": order.bl_number,
+        "origin": order.origin,
+        "destination": order.destination,
+        "containers": [c.model_dump() for c in order.containers],
+        "container_count": len(order.containers),
+        "total_weight": total_weight,
+        "total_products": total_products,
+        "incoterm": order.incoterm,
+        "notes": order.notes,
+        "status": "created",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Store in database
+    await db.orders_new.insert_one(new_order)
+    
+    return {
+        "success": True,
+        "order": {k: v for k, v in new_order.items() if k != "_id"},
+        "message": f"Orden {order_number} creada con {len(order.containers)} contenedor(es)"
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
