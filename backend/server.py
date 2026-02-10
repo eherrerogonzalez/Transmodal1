@@ -184,6 +184,58 @@ class StockReplanishment(BaseModel):
     priority_score: float
     status: str
 
+# ==================== WAREHOUSE POSITIONS & APPOINTMENTS ====================
+
+class WarehousePosition(BaseModel):
+    position_id: str
+    zone: str  # A, B, C, D, E
+    aisle: str  # 01-20
+    rack: str  # 01-10
+    level: str  # 1-5
+    full_code: str  # Z-AA-RR-L (e.g., A-05-03-2)
+    capacity: int
+    current_units: int
+    product_sku: Optional[str] = None
+    product_name: Optional[str] = None
+    nearest_door: int
+
+class ProductPositions(BaseModel):
+    sku: str
+    product_name: str
+    brand: str
+    total_units: int
+    positions: List[WarehousePosition]
+    recommended_door: int
+    zone_distribution: dict
+
+class DeliveryAppointment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    container_number: str
+    product_sku: str
+    product_name: str
+    brand: str
+    quantity: int
+    scheduled_date: str
+    scheduled_time: str
+    assigned_door: int
+    operator_name: str
+    operator_license: str
+    insurance_policy: str
+    truck_plates: str
+    status: str  # "scheduled", "in_progress", "completed", "cancelled"
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    notes: Optional[str] = None
+
+class NewProductRequest(BaseModel):
+    sku: str
+    name: str
+    brand: str
+    category: str
+    units_per_container: int
+    minimum_stock: int
+    maximum_stock: int
+    zone_preference: str  # Preferred warehouse zone
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
