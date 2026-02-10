@@ -24,6 +24,7 @@ const navItems = [
   { path: '/orders', icon: FileText, label: 'Órdenes' },
   { path: '/containers', icon: Package, label: 'Contenedores' },
   { path: '/map', icon: Map, label: 'Mapa' },
+  { path: '/inventory', icon: Warehouse, label: 'Inventario' },
   { path: '/planning', icon: Calculator, label: 'Planeación' },
   { path: '/additionals', icon: Receipt, label: 'Adicionales' },
   { path: '/account', icon: CreditCard, label: 'Estado de Cuenta' },
