@@ -3076,18 +3076,319 @@ async def extract_document_with_ai(
             "extracted_data": None
         }
 
-# ==================== AI CHATBOT ====================
+# ==================== AI CHATBOT WITH DATA ACCESS ====================
 
 # Store chat histories in memory (in production, use database)
 chat_sessions = {}
 
-@api_router.post("/ai/chat", response_model=ChatResponse)
-async def chat_with_ai(request: ChatRequest, user: dict = Depends(verify_token)):
-    """Chat with AI assistant for customer service"""
-    session_id = request.session_id or str(uuid.uuid4())
+def get_system_data_context():
+    """Get current system data for AI context"""
+    # Get inventory data
+    inventory = generate_cedis_inventory()
+    inv_summary = {
+        "total_products": len(inventory),
+        "critical": len([i for i in inventory if i.stock_status == "critical"]),
+        "low": len([i for i in inventory if i.stock_status == "low"]),
+        "optimal": len([i for i in inventory if i.stock_status == "optimal"]),
+        "products": [{"sku": i.sku, "name": i.name, "brand": i.brand, "stock": i.current_stock, "status": i.stock_status, "days_of_stock": i.days_of_stock} for i in inventory[:20]]
+    }
     
+    # Get supply chain data
+    plans = generate_supply_chain_plan()
+    sc_summary = {
+        "emergency_actions": len([p for p in plans if p.action_required == "emergency"]),
+        "orders_needed": len([p for p in plans if p.action_required in ["order_now", "emergency"]]),
+        "products_needing_action": [{"sku": p.sku, "name": p.product_name, "action": p.action_required, "cedis_stock": p.cedis_current_stock, "demand": p.total_end_client_demand} for p in plans if p.action_required != "none"][:10]
+    }
+    
+    # Get end clients overview
+    end_clients_data = []
+    for client in END_CLIENTS:
+        client_inv = generate_end_client_inventory(client["name"])
+        critical = len([i for i in client_inv if i.days_of_stock <= 3])
+        needs_restock = len([i for i in client_inv if i.needs_restock])
+        end_clients_data.append({
+            "name": client["name"],
+            "stores": len(set(i.store_code for i in client_inv)),
+            "critical_items": critical,
+            "needs_restock": needs_restock
+        })
+    
+    # Get pending orders
+    pending_origin = generate_pending_origin_orders()
+    pending_dist = generate_pending_distribution_orders()
+    
+    return {
+        "inventory": inv_summary,
+        "supply_chain": sc_summary,
+        "end_clients": end_clients_data,
+        "pending_origin_orders": len(pending_origin),
+        "pending_distributions": len(pending_dist),
+        "routes": [{"origin": r["origin"], "destination": r["destination"], "days": r["transit_days"] + r["port_days"] + r["customs_days"] + r["inland_days"]} for r in TRANSIT_ROUTES]
+    }
+
+def execute_data_query(query_type: str, params: dict = None):
+    """Execute a data query based on type"""
+    params = params or {}
+    
+    if query_type == "inventory_summary":
+        inventory = generate_cedis_inventory()
+        return {
+            "type": "table",
+            "title": "Resumen de Inventario CEDIS",
+            "columns": ["SKU", "Producto", "Marca", "Stock", "Mínimo", "Estado", "Días Stock"],
+            "data": [[i.sku, i.name, i.brand, i.current_stock, i.minimum_stock, i.stock_status, round(i.days_of_stock, 1)] for i in inventory]
+        }
+    
+    elif query_type == "inventory_by_brand":
+        inventory = generate_cedis_inventory()
+        brand_data = {}
+        for item in inventory:
+            if item.brand not in brand_data:
+                brand_data[item.brand] = {"total_stock": 0, "products": 0, "critical": 0, "low": 0}
+            brand_data[item.brand]["total_stock"] += item.current_stock
+            brand_data[item.brand]["products"] += 1
+            if item.stock_status == "critical":
+                brand_data[item.brand]["critical"] += 1
+            elif item.stock_status == "low":
+                brand_data[item.brand]["low"] += 1
+        
+        return {
+            "type": "chart",
+            "chart_type": "bar",
+            "title": "Stock por Marca",
+            "labels": list(brand_data.keys()),
+            "datasets": [
+                {"label": "Stock Total", "data": [v["total_stock"] for v in brand_data.values()]},
+            ]
+        }
+    
+    elif query_type == "inventory_status_chart":
+        inventory = generate_cedis_inventory()
+        status_counts = {"Crítico": 0, "Bajo": 0, "Óptimo": 0, "Exceso": 0}
+        for item in inventory:
+            if item.stock_status == "critical":
+                status_counts["Crítico"] += 1
+            elif item.stock_status == "low":
+                status_counts["Bajo"] += 1
+            elif item.stock_status == "optimal":
+                status_counts["Óptimo"] += 1
+            else:
+                status_counts["Exceso"] += 1
+        
+        return {
+            "type": "chart",
+            "chart_type": "pie",
+            "title": "Distribución de Estado de Inventario",
+            "labels": list(status_counts.keys()),
+            "data": list(status_counts.values()),
+            "colors": ["#ef4444", "#f59e0b", "#10b981", "#3b82f6"]
+        }
+    
+    elif query_type == "end_client_summary":
+        results = []
+        for client in END_CLIENTS:
+            client_inv = generate_end_client_inventory(client["name"])
+            critical = len([i for i in client_inv if i.days_of_stock <= 3])
+            needs_restock = len([i for i in client_inv if i.needs_restock])
+            total_units = sum(i.suggested_quantity for i in client_inv if i.needs_restock)
+            results.append([client["name"], len(set(i.store_code for i in client_inv)), critical, needs_restock, total_units])
+        
+        return {
+            "type": "table",
+            "title": "Resumen de Clientes Finales",
+            "columns": ["Cliente", "Tiendas", "Items Críticos", "Necesita Restock", "Unidades a Enviar"],
+            "data": results
+        }
+    
+    elif query_type == "end_client_chart":
+        results = []
+        for client in END_CLIENTS:
+            client_inv = generate_end_client_inventory(client["name"])
+            critical = len([i for i in client_inv if i.days_of_stock <= 3])
+            needs_restock = len([i for i in client_inv if i.needs_restock])
+            results.append({"name": client["name"], "critical": critical, "needs_restock": needs_restock})
+        
+        return {
+            "type": "chart",
+            "chart_type": "bar",
+            "title": "Estado de Clientes Finales",
+            "labels": [r["name"] for r in results],
+            "datasets": [
+                {"label": "Críticos", "data": [r["critical"] for r in results], "color": "#ef4444"},
+                {"label": "Necesita Restock", "data": [r["needs_restock"] for r in results], "color": "#f59e0b"}
+            ]
+        }
+    
+    elif query_type == "pending_orders_summary":
+        pending_origin = generate_pending_origin_orders()
+        pending_dist = generate_pending_distribution_orders()
+        
+        origin_data = [[p.product_name, p.brand, p.suggested_quantity, p.suggested_origin, p.lead_time_days] for p in pending_origin[:10]]
+        dist_data = [[p.product_name, p.client_name, p.store_name, p.suggested_quantity, p.priority] for p in pending_dist[:10]]
+        
+        return {
+            "type": "multi_table",
+            "tables": [
+                {
+                    "title": f"Pedidos Pendientes a Origen ({len(pending_origin)} total)",
+                    "columns": ["Producto", "Marca", "Cantidad", "Origen", "Lead Time"],
+                    "data": origin_data
+                },
+                {
+                    "title": f"Distribuciones Pendientes ({len(pending_dist)} total)",
+                    "columns": ["Producto", "Cliente", "Tienda", "Cantidad", "Prioridad"],
+                    "data": dist_data
+                }
+            ]
+        }
+    
+    elif query_type == "transit_routes":
+        routes_data = []
+        for r in TRANSIT_ROUTES:
+            total = r["transit_days"] + r["port_days"] + r["customs_days"] + r["inland_days"]
+            routes_data.append([r["origin"], r["destination"], r["mode"], r["transit_days"], total, f"${r['cost']:,}"])
+        
+        return {
+            "type": "table",
+            "title": "Rutas de Tránsito Disponibles",
+            "columns": ["Origen", "Destino", "Modo", "Días Tránsito", "Lead Time Total", "Costo"],
+            "data": routes_data
+        }
+    
+    elif query_type == "critical_products":
+        inventory = generate_cedis_inventory()
+        critical = [i for i in inventory if i.stock_status in ["critical", "low"]]
+        
+        return {
+            "type": "table",
+            "title": "Productos Críticos y Bajos en CEDIS",
+            "columns": ["SKU", "Producto", "Marca", "Stock Actual", "Mínimo", "Días de Stock", "Estado"],
+            "data": [[i.sku, i.name, i.brand, i.current_stock, i.minimum_stock, round(i.days_of_stock, 1), i.stock_status] for i in critical],
+            "highlight_rows": [idx for idx, i in enumerate(critical) if i.stock_status == "critical"]
+        }
+    
+    elif query_type == "client_detail":
+        client_name = params.get("client_name", "Walmart")
+        client_inv = generate_end_client_inventory(client_name)
+        
+        if not client_inv:
+            return {"type": "error", "message": f"Cliente {client_name} no encontrado"}
+        
+        # Group by product
+        by_product = {}
+        for item in client_inv:
+            if item.sku not in by_product:
+                by_product[item.sku] = {"name": item.product_name, "brand": item.brand, "stores": 0, "critical": 0, "total_qty": 0}
+            by_product[item.sku]["stores"] += 1
+            if item.days_of_stock <= 3:
+                by_product[item.sku]["critical"] += 1
+            if item.needs_restock:
+                by_product[item.sku]["total_qty"] += item.suggested_quantity
+        
+        return {
+            "type": "table",
+            "title": f"Detalle de Inventario - {client_name}",
+            "columns": ["Producto", "Marca", "Tiendas", "Tiendas Críticas", "Unidades a Enviar"],
+            "data": [[v["name"], v["brand"], v["stores"], v["critical"], v["total_qty"]] for v in by_product.values()]
+        }
+    
+    elif query_type == "supply_chain_actions":
+        plans = generate_supply_chain_plan()
+        actions = [p for p in plans if p.action_required != "none"]
+        
+        return {
+            "type": "table",
+            "title": "Acciones de Cadena de Suministro",
+            "columns": ["Producto", "Marca", "Stock CEDIS", "Demanda", "Acción", "Fecha Pedido", "Fecha Entrega"],
+            "data": [[p.product_name, p.brand, p.cedis_current_stock, p.total_end_client_demand, p.action_required, p.cedis_reorder_date or "N/A", p.expected_inbound_date or "N/A"] for p in actions[:15]],
+            "highlight_rows": [idx for idx, p in enumerate(actions[:15]) if p.action_required == "emergency"]
+        }
+    
+    return {"type": "error", "message": "Tipo de consulta no reconocido"}
+
+@api_router.post("/ai/chat")
+async def chat_with_ai(request: ChatRequest, user: dict = Depends(verify_token)):
+    """Chat with AI assistant with data access capabilities"""
+    session_id = request.session_id or str(uuid.uuid4())
     api_key = os.environ.get('EMERGENT_LLM_KEY')
     
+    # Get current data context
+    data_context = get_system_data_context()
+    
+    # Check for data/chart/report requests in the message
+    message_lower = request.message.lower()
+    data_response = None
+    
+    # Detect query intent
+    if any(word in message_lower for word in ["inventario", "stock", "productos"]):
+        if any(word in message_lower for word in ["gráfico", "grafico", "chart", "gráfica", "grafica"]):
+            if "marca" in message_lower:
+                data_response = execute_data_query("inventory_by_brand")
+            else:
+                data_response = execute_data_query("inventory_status_chart")
+        elif any(word in message_lower for word in ["crítico", "critico", "bajo", "alerta"]):
+            data_response = execute_data_query("critical_products")
+        elif any(word in message_lower for word in ["reporte", "tabla", "listado", "detalle", "resumen"]):
+            data_response = execute_data_query("inventory_summary")
+    
+    elif any(word in message_lower for word in ["walmart", "costco", "heb", "soriana", "chedraui", "la comer", "cliente final", "clientes finales", "retail"]):
+        specific_client = None
+        for client in ["walmart", "costco", "heb", "soriana", "chedraui", "la comer"]:
+            if client in message_lower:
+                specific_client = client.title()
+                if client == "la comer":
+                    specific_client = "La Comer"
+                break
+        
+        if specific_client:
+            data_response = execute_data_query("client_detail", {"client_name": specific_client})
+        elif any(word in message_lower for word in ["gráfico", "grafico", "chart"]):
+            data_response = execute_data_query("end_client_chart")
+        else:
+            data_response = execute_data_query("end_client_summary")
+    
+    elif any(word in message_lower for word in ["pendiente", "confirmar", "pedido", "distribución", "distribucion"]):
+        data_response = execute_data_query("pending_orders_summary")
+    
+    elif any(word in message_lower for word in ["ruta", "tránsito", "transito", "lead time", "tiempo"]):
+        data_response = execute_data_query("transit_routes")
+    
+    elif any(word in message_lower for word in ["cadena", "suministro", "acciones", "plan"]):
+        data_response = execute_data_query("supply_chain_actions")
+    
+    # Build system message with data context
+    system_message = f"""Eres el asistente virtual inteligente de Transmodal, una empresa de logística internacional.
+Tienes acceso a los datos del sistema en tiempo real y puedes proporcionar información precisa.
+
+DATOS ACTUALES DEL SISTEMA:
+- Inventario CEDIS: {data_context['inventory']['total_products']} productos
+  - Críticos: {data_context['inventory']['critical']}
+  - Bajos: {data_context['inventory']['low']}
+  - Óptimos: {data_context['inventory']['optimal']}
+  
+- Cadena de Suministro:
+  - Acciones de emergencia: {data_context['supply_chain']['emergency_actions']}
+  - Pedidos necesarios: {data_context['supply_chain']['orders_needed']}
+  
+- Clientes Finales: {json.dumps(data_context['end_clients'], ensure_ascii=False)}
+
+- Pedidos pendientes a origen: {data_context['pending_origin_orders']}
+- Distribuciones pendientes: {data_context['pending_distributions']}
+
+- Rutas disponibles: {json.dumps(data_context['routes'], ensure_ascii=False)}
+
+CAPACIDADES:
+1. Puedes proporcionar datos específicos del inventario, órdenes y clientes
+2. Puedes generar reportes y tablas con datos reales
+3. Puedes crear gráficos (barras, pastel, líneas)
+4. Puedes analizar tendencias y dar recomendaciones
+
+Responde siempre en español de manera profesional. Cuando el usuario pida datos, gráficos o reportes,
+indica que estás proporcionando información en tiempo real del sistema.
+
+Si se genera un gráfico o tabla, menciona que se está mostrando visualmente."""
+
     # Get or create chat session
     if session_id not in chat_sessions:
         chat_sessions[session_id] = {
@@ -3095,20 +3396,7 @@ async def chat_with_ai(request: ChatRequest, user: dict = Depends(verify_token))
             "chat": LlmChat(
                 api_key=api_key,
                 session_id=session_id,
-                system_message="""Eres el asistente virtual de Transmodal, una empresa de logística internacional.
-                
-Tu rol es ayudar a los clientes con:
-- Consultas sobre el estado de sus contenedores y órdenes
-- Información sobre tiempos de tránsito y rutas
-- Explicación de cargos adicionales
-- Proceso de reclamaciones
-- Programación de citas de entrega
-- Información sobre inventario y reabastecimiento
-- Cualquier duda sobre el portal de clientes
-
-Responde siempre en español de manera profesional y amable.
-Si no tienes información específica, ofrece alternativas o sugiere contactar al equipo de soporte.
-Mantén las respuestas concisas pero informativas."""
+                system_message=system_message
             ).with_model("anthropic", "claude-sonnet-4-20250514")
         }
     
@@ -3118,6 +3406,21 @@ Mantén las respuestas concisas pero informativas."""
         response = await session["chat"].send_message(UserMessage(text=request.message))
         
         # Store messages
+        session["messages"].append({"role": "user", "content": request.message})
+        session["messages"].append({"role": "assistant", "content": response})
+        
+        return {
+            "response": response,
+            "session_id": session_id,
+            "data": data_response  # Include chart/table data if generated
+        }
+    except Exception as e:
+        logging.error(f"Chat error: {e}")
+        return {
+            "response": "Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.",
+            "session_id": session_id,
+            "data": None
+        }
         session["messages"].append({"role": "user", "content": request.message})
         session["messages"].append({"role": "assistant", "content": response})
         
