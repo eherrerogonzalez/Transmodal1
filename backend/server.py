@@ -56,6 +56,20 @@ class DashboardData(BaseModel):
     emissions_this_month: float
     monthly_data: List[dict]
 
+class TrackingEvent(BaseModel):
+    event_name: str
+    event_key: str
+    scheduled_date: Optional[str] = None
+    actual_date: Optional[str] = None
+    status: str  # "completed", "in_progress", "pending", "na"
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+class ContainerTracking(BaseModel):
+    container_id: str
+    transport_mode: str  # "maritime", "intermodal_train", "truck"
+    events: List[TrackingEvent]
+
 class ContainerLocation(BaseModel):
     container_id: str
     latitude: float
@@ -80,6 +94,7 @@ class Container(BaseModel):
     latitude: float
     longitude: float
     order_id: Optional[str] = None
+    transport_mode: str = "maritime"
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class OrderDocument(BaseModel):
@@ -169,6 +184,87 @@ CONTAINER_STATUSES = ["En Puerto Origen", "En Tránsito", "En Aduana", "En Puert
 CONTAINER_TYPES = ["Dry", "Reefer", "Open Top", "Flat Rack"]
 CONTAINER_SIZES = ["20ft", "40ft", "40ft HC", "45ft HC"]
 VESSELS = ["MSC Gülsün", "CMA CGM Antoine", "COSCO Shipping Universe", "Maersk Emerald", "Evergreen Ever Given"]
+TRANSPORT_MODES = ["maritime", "intermodal_train", "truck"]
+CEDIS_LOCATIONS = ["CEDIS Guadalajara", "CEDIS CDMX", "CEDIS Monterrey", "CEDIS Querétaro", "CEDIS Puebla"]
+TERMINALS = ["Terminal APM", "Terminal ICAVE", "Terminal SSA", "Terminal Hutchison"]
+INTERMODAL_TERMINALS = ["Terminal Intermodal Pantaco", "Terminal Intermodal San Luis Potosí", "Terminal Ferromex GDL"]
+
+def generate_tracking_events(container_status: str, transport_mode: str):
+    """Generate realistic tracking events based on container status and transport mode"""
+    from datetime import timedelta
+    
+    base_date = datetime.now(timezone.utc) - timedelta(days=random.randint(5, 20))
+    events = []
+    
+    # Define all possible events
+    all_events = [
+        ("Atraque de Buque", "vessel_arrival"),
+        ("Solicitud Agente Aduanal", "customs_request"),
+        ("Salida de Terminal", "terminal_departure"),
+        ("Llegada Terminal Intermodal", "intermodal_arrival"),
+        ("Salida Terminal Intermodal", "intermodal_departure"),
+        ("Cita Llegada CEDIS", "cedis_appointment"),
+        ("Llegada a CEDIS", "cedis_arrival"),
+        ("Salida de Almacén", "warehouse_departure"),
+        ("Entrega de Vacío", "empty_return")
+    ]
+    
+    # Determine which events are applicable based on transport mode
+    if transport_mode == "intermodal_train":
+        applicable_events = all_events
+    else:
+        # Skip intermodal events for direct truck/maritime
+        applicable_events = [e for e in all_events if "intermodal" not in e[1]]
+    
+    # Determine completed events based on status
+    status_progress = {
+        "En Puerto Origen": 0,
+        "En Tránsito": 2,
+        "En Aduana": 3,
+        "En Puerto Destino": 4,
+        "En Terminal Intermodal": 5,
+        "En Tránsito Terrestre": 6,
+        "En CEDIS": 7,
+        "Entregado": len(applicable_events)
+    }
+    
+    completed_count = status_progress.get(container_status, 2)
+    
+    for i, (event_name, event_key) in enumerate(applicable_events):
+        event_date = base_date + timedelta(days=i * random.randint(1, 3), hours=random.randint(0, 12))
+        
+        if i < completed_count:
+            status = "completed"
+            actual_date = event_date.isoformat()
+            scheduled_date = (event_date - timedelta(hours=random.randint(0, 6))).isoformat()
+        elif i == completed_count:
+            status = "in_progress"
+            actual_date = None
+            scheduled_date = (datetime.now(timezone.utc) + timedelta(hours=random.randint(1, 24))).isoformat()
+        else:
+            status = "pending"
+            actual_date = None
+            scheduled_date = (datetime.now(timezone.utc) + timedelta(days=i - completed_count + 1)).isoformat()
+        
+        # Add location info
+        if "terminal" in event_key.lower() or "intermodal" in event_key.lower():
+            location = random.choice(TERMINALS) if "intermodal" not in event_key else random.choice(INTERMODAL_TERMINALS)
+        elif "cedis" in event_key.lower() or "warehouse" in event_key.lower():
+            location = random.choice(CEDIS_LOCATIONS)
+        else:
+            location = None
+        
+        events.append(TrackingEvent(
+            event_name=event_name,
+            event_key=event_key,
+            scheduled_date=scheduled_date,
+            actual_date=actual_date,
+            status=status,
+            location=location,
+            notes=f"Referencia: REF-{random.randint(10000, 99999)}" if status == "completed" else None
+        ))
+    
+    return events
 
 def generate_container_number():
     prefix = random.choice(["MSKU", "CSQU", "CMAU", "MSCU", "EGLV"])
