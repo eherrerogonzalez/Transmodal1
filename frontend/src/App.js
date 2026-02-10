@@ -14,6 +14,7 @@ import ContainerMap from "./pages/ContainerMap";
 import Additionals from "./pages/Additionals";
 import AccountStatement from "./pages/AccountStatement";
 import Planning from "./pages/Planning";
+import Inventory from "./pages/Inventory";
 
 function App() {
   return (
