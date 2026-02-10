@@ -82,6 +82,12 @@ export const getTransitRoutes = () => api.get('/planning/transit-routes');
 export const getRestockPredictions = () => api.get('/planning/restock-predictions');
 export const getRestockTimeline = (days = 30) => api.get(`/planning/restock-timeline?days=${days}`);
 
+// Supply Chain Planning (Integrated: Origin → CEDIS → End Client)
+export const getSupplyChainPlan = () => api.get('/planning/supply-chain');
+export const getSkuSupplyChainPlan = (sku) => api.get(`/planning/supply-chain/${encodeURIComponent(sku)}`);
+export const getDistributionOrders = () => api.get('/planning/distribution-orders');
+export const getActionItems = () => api.get('/planning/action-items');
+
 // End Client Inventory (Walmart, Costco, etc.)
 export const getEndClientsList = () => api.get('/inventory/end-clients');
 export const getEndClientInventory = (clientName) => api.get(`/inventory/end-clients/${encodeURIComponent(clientName)}`);
