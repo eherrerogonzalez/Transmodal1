@@ -483,6 +483,70 @@ def generate_containers_with_products(inventory: List[InventoryItem]):
     
     return containers
 
+# ==================== WAREHOUSE ZONE CONFIGURATION ====================
+
+WAREHOUSE_ZONES = {
+    "A": {"name": "Zona A - Vodkas", "door_range": [1, 2], "categories": ["Vodka"]},
+    "B": {"name": "Zona B - Whiskies", "door_range": [2, 3], "categories": ["Whisky"]},
+    "C": {"name": "Zona C - Tequilas", "door_range": [4, 5], "categories": ["Tequila"]},
+    "D": {"name": "Zona D - Rones", "door_range": [5, 6], "categories": ["Ron"]},
+    "E": {"name": "Zona E - Ginebras y Otros", "door_range": [7, 8], "categories": ["Gin", "Otros"]},
+}
+
+def get_zone_for_category(category: str) -> str:
+    """Get warehouse zone for a product category"""
+    for zone, config in WAREHOUSE_ZONES.items():
+        if category in config["categories"]:
+            return zone
+    return "E"  # Default zone
+
+def get_recommended_door(zone: str) -> int:
+    """Get recommended door based on zone"""
+    if zone in WAREHOUSE_ZONES:
+        doors = WAREHOUSE_ZONES[zone]["door_range"]
+        return random.choice(doors)
+    return random.randint(1, 8)
+
+def generate_warehouse_positions(sku: str, product_name: str, category: str, total_units: int):
+    """Generate warehouse positions for a product"""
+    zone = get_zone_for_category(category)
+    positions = []
+    remaining_units = total_units
+    position_capacity = random.randint(200, 500)
+    
+    aisle_num = 1
+    rack_num = 1
+    level_num = 1
+    
+    while remaining_units > 0:
+        units_in_position = min(remaining_units, position_capacity)
+        
+        position = WarehousePosition(
+            position_id=str(uuid.uuid4()),
+            zone=zone,
+            aisle=f"{aisle_num:02d}",
+            rack=f"{rack_num:02d}",
+            level=str(level_num),
+            full_code=f"{zone}-{aisle_num:02d}-{rack_num:02d}-{level_num}",
+            capacity=position_capacity,
+            current_units=units_in_position,
+            product_sku=sku,
+            product_name=product_name,
+            nearest_door=get_recommended_door(zone)
+        )
+        positions.append(position)
+        
+        remaining_units -= units_in_position
+        level_num += 1
+        if level_num > 5:
+            level_num = 1
+            rack_num += 1
+        if rack_num > 10:
+            rack_num = 1
+            aisle_num += 1
+    
+    return positions, zone
+
 # Additional types with reason codes
 ADDITIONAL_TYPES = [
     {"type": "DEMORA", "code": "DEM001", "description": "Demora en puerto - día adicional"},
