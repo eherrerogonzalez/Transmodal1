@@ -13,6 +13,7 @@ import Containers from "./pages/Containers";
 import ContainerMap from "./pages/ContainerMap";
 import Additionals from "./pages/Additionals";
 import AccountStatement from "./pages/AccountStatement";
+import Planning from "./pages/Planning";
 
 function App() {
   return (
