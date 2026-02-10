@@ -298,6 +298,139 @@ CEDIS_LOCATIONS = ["CEDIS Guadalajara", "CEDIS CDMX", "CEDIS Monterrey", "CEDIS 
 TERMINALS = ["Terminal APM", "Terminal ICAVE", "Terminal SSA", "Terminal Hutchison"]
 INTERMODAL_TERMINALS = ["Terminal Intermodal Pantaco", "Terminal Intermodal San Luis Potosí", "Terminal Ferromex GDL"]
 
+# ==================== PERNOD RICARD PRODUCTS ====================
+
+PERNOD_RICARD_PRODUCTS = [
+    {"sku": "ABS-750", "name": "Absolut Vodka 750ml", "brand": "Absolut", "category": "Vodka", "units_per_container": 2400},
+    {"sku": "ABS-1L", "name": "Absolut Vodka 1L", "brand": "Absolut", "category": "Vodka", "units_per_container": 1800},
+    {"sku": "ABS-CITRON", "name": "Absolut Citron 750ml", "brand": "Absolut", "category": "Vodka", "units_per_container": 2400},
+    {"sku": "ABS-MANGO", "name": "Absolut Mango 750ml", "brand": "Absolut", "category": "Vodka", "units_per_container": 2400},
+    {"sku": "WYB-750", "name": "Wyborowa Vodka 750ml", "brand": "Wyborowa", "category": "Vodka", "units_per_container": 2400},
+    {"sku": "WYB-1L", "name": "Wyborowa Vodka 1L", "brand": "Wyborowa", "category": "Vodka", "units_per_container": 1800},
+    {"sku": "CHV-12", "name": "Chivas Regal 12 años 750ml", "brand": "Chivas Regal", "category": "Whisky", "units_per_container": 1800},
+    {"sku": "CHV-18", "name": "Chivas Regal 18 años 750ml", "brand": "Chivas Regal", "category": "Whisky", "units_per_container": 1200},
+    {"sku": "CHV-EXTRA", "name": "Chivas Extra 750ml", "brand": "Chivas Regal", "category": "Whisky", "units_per_container": 1500},
+    {"sku": "JC-ESP", "name": "José Cuervo Especial 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 2000},
+    {"sku": "JC-TRAD-SLV", "name": "José Cuervo Tradicional Silver 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 1800},
+    {"sku": "JC-TRAD-REP", "name": "José Cuervo Tradicional Reposado 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 1800},
+    {"sku": "JC-1800-SLV", "name": "1800 Silver 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 1500},
+    {"sku": "JC-1800-REP", "name": "1800 Reposado 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 1500},
+    {"sku": "JC-1800-ANJ", "name": "1800 Añejo 750ml", "brand": "José Cuervo", "category": "Tequila", "units_per_container": 1200},
+    {"sku": "BAC-SUP", "name": "Bacardí Superior 750ml", "brand": "Bacardí", "category": "Ron", "units_per_container": 2400},
+    {"sku": "BAC-ORO", "name": "Bacardí Oro 750ml", "brand": "Bacardí", "category": "Ron", "units_per_container": 2400},
+    {"sku": "BAC-LIMON", "name": "Bacardí Limón 750ml", "brand": "Bacardí", "category": "Ron", "units_per_container": 2400},
+    {"sku": "BAC-8", "name": "Bacardí 8 Años 750ml", "brand": "Bacardí", "category": "Ron", "units_per_container": 1500},
+    {"sku": "HAVANA-7", "name": "Havana Club 7 Años 750ml", "brand": "Havana Club", "category": "Ron", "units_per_container": 1500},
+    {"sku": "BFTR-750", "name": "Beefeater Gin 750ml", "brand": "Beefeater", "category": "Gin", "units_per_container": 2000},
+    {"sku": "BFTR-PINK", "name": "Beefeater Pink 750ml", "brand": "Beefeater", "category": "Gin", "units_per_container": 2000},
+    {"sku": "JAMESON", "name": "Jameson Irish Whiskey 750ml", "brand": "Jameson", "category": "Whisky", "units_per_container": 1800},
+    {"sku": "BALLANT", "name": "Ballantine's Finest 750ml", "brand": "Ballantine's", "category": "Whisky", "units_per_container": 2000},
+]
+
+def generate_cedis_inventory():
+    """Generate current inventory with stock levels for CEDIS"""
+    inventory = []
+    
+    for product in PERNOD_RICARD_PRODUCTS:
+        # Random stock levels
+        min_stock = random.randint(500, 2000)
+        max_stock = min_stock * 4
+        current_stock = random.randint(int(min_stock * 0.3), int(max_stock * 1.1))
+        reorder_point = int(min_stock * 1.5)
+        
+        # Calculate status and priority
+        stock_ratio = current_stock / min_stock if min_stock > 0 else 1
+        
+        if stock_ratio <= 0.5:
+            status = "critical"
+            priority = 100 - (stock_ratio * 100)  # Higher priority for lower stock
+        elif stock_ratio <= 1.0:
+            status = "low"
+            priority = 70 - (stock_ratio * 30)
+        elif stock_ratio <= 2.0:
+            status = "optimal"
+            priority = 30 - (stock_ratio * 10)
+        else:
+            status = "excess"
+            priority = 0
+        
+        # Calculate days of stock (assuming avg daily sales)
+        avg_daily_sales = random.randint(20, 100)
+        days_of_stock = round(current_stock / avg_daily_sales, 1) if avg_daily_sales > 0 else 999
+        
+        # Units needed to reach reorder point
+        units_needed = max(0, reorder_point - current_stock)
+        
+        inventory.append(InventoryItem(
+            product_id=str(uuid.uuid4()),
+            sku=product["sku"],
+            name=product["name"],
+            brand=product["brand"],
+            current_stock=current_stock,
+            minimum_stock=min_stock,
+            maximum_stock=max_stock,
+            reorder_point=reorder_point,
+            stock_status=status,
+            days_of_stock=days_of_stock,
+            units_needed=units_needed,
+            priority_score=round(max(0, priority), 1)
+        ))
+    
+    # Sort by priority (highest first)
+    inventory.sort(key=lambda x: x.priority_score, reverse=True)
+    
+    return inventory
+
+def generate_containers_with_products(inventory: List[InventoryItem]):
+    """Generate containers with products, prioritizing low stock items"""
+    containers = []
+    
+    # Get products that need restocking (sorted by priority)
+    products_needing_stock = [inv for inv in inventory if inv.units_needed > 0]
+    products_needing_stock.sort(key=lambda x: x.priority_score, reverse=True)
+    
+    # Generate containers for high priority products
+    for i, inv_item in enumerate(products_needing_stock[:15]):  # Top 15 priority items
+        product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == inv_item.sku), None)
+        if not product:
+            continue
+        
+        origin_port = random.choice(PORTS)
+        dest_port = random.choice([p for p in PORTS if p["name"] in ["Manzanillo", "Veracruz", "Lazaro Cardenas"]])
+        
+        # Higher priority = closer to delivery
+        if inv_item.priority_score >= 70:
+            status = random.choice(["En Puerto Destino", "En Aduana", "En Tránsito"])
+            urgency = "critical"
+        elif inv_item.priority_score >= 40:
+            status = random.choice(["En Tránsito", "En Aduana"])
+            urgency = "high"
+        else:
+            status = random.choice(["En Puerto Origen", "En Tránsito"])
+            urgency = "medium"
+        
+        eta_days = random.randint(1, 5) if urgency == "critical" else random.randint(5, 15)
+        eta = (datetime.now(timezone.utc) + timedelta(days=eta_days)).isoformat()
+        
+        containers.append(ContainerProduct(
+            container_id=str(uuid.uuid4()),
+            container_number=generate_container_number(),
+            product_id=inv_item.product_id,
+            sku=inv_item.sku,
+            product_name=inv_item.name,
+            brand=inv_item.brand,
+            quantity=product["units_per_container"],
+            eta=eta,
+            status=status,
+            priority_score=inv_item.priority_score,
+            delivery_urgency=urgency
+        ))
+    
+    # Sort by priority
+    containers.sort(key=lambda x: x.priority_score, reverse=True)
+    
+    return containers
+
 # Additional types with reason codes
 ADDITIONAL_TYPES = [
     {"type": "DEMORA", "code": "DEM001", "description": "Demora en puerto - día adicional"},
