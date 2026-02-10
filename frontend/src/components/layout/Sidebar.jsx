@@ -14,17 +14,21 @@ import {
   ChevronLeft,
   ChevronRight,
   Calculator,
-  Warehouse
+  Warehouse,
+  ClipboardCheck,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 
 const navItems = [
   { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/confirmations', icon: ClipboardCheck, label: 'Confirmaciones' },
   { path: '/orders', icon: FileText, label: 'Órdenes' },
+  { path: '/orders/new', icon: Plus, label: 'Nueva Orden' },
   { path: '/containers', icon: Package, label: 'Contenedores' },
   { path: '/map', icon: Map, label: 'Mapa' },
-  { path: '/inventory', icon: Warehouse, label: 'Inventario' },
+  { path: '/inventory', icon: Warehouse, label: 'Cadena Suministro' },
   { path: '/planning', icon: Calculator, label: 'Planeación' },
   { path: '/additionals', icon: Receipt, label: 'Adicionales' },
   { path: '/account', icon: CreditCard, label: 'Estado de Cuenta' },
