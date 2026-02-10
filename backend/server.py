@@ -90,6 +90,48 @@ class ContainerAdditional(BaseModel):
     requested_at: str
     approved_at: Optional[str] = None
 
+# ==================== PLANNING MODELS ====================
+
+class WarehouseConfig(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    doors: int  # Number of loading docks/doors
+    max_containers_per_day: int
+    operating_hours: str = "08:00-18:00"
+    working_days: List[str] = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+
+class HistoricalData(BaseModel):
+    year: int
+    month: str
+    containers: int
+    logistics_cost: float
+    extra_costs: float
+    avg_cost_per_container: float
+
+class ForecastData(BaseModel):
+    month: str
+    month_num: int
+    forecasted_containers: int
+    forecasted_logistics_cost: float
+    forecasted_extra_costs: float
+    confidence_level: float
+
+class DeliverySlot(BaseModel):
+    date: str
+    day_name: str
+    scheduled_containers: int
+    max_capacity: int
+    utilization_percent: float
+    containers: List[dict]
+
+class PlanningForecast(BaseModel):
+    year: int
+    historical_summary: dict
+    annual_forecast: dict
+    monthly_forecast: List[ForecastData]
+    delivery_calendar: List[DeliverySlot]
+    budget_comparison: dict
+
 class Container(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
