@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   getInventory, getContainersByProduct, getRestockPlan, 
   getProductPositions, createProduct, getWarehouseZones,
-  getAppointments, createAppointment, updateAppointmentStatus
+  getAppointments, createAppointment, getRestockPredictions,
+  getRestockTimeline, getEndClientsOverview, getEndClientInventory
 } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -38,7 +39,8 @@ import {
 import { 
   Package, AlertTriangle, CheckCircle, Clock, Warehouse, Search, Filter, 
   Calendar, Truck, ArrowRight, Wine, Box, Plus, MapPin, Grid3X3,
-  DoorOpen, User, FileText, Shield, Car
+  DoorOpen, User, FileText, Shield, Car, Ship, Timer, Store, Building2,
+  TrendingDown, Route, CalendarClock
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,10 +54,14 @@ const stockStatusConfig = {
 };
 
 const urgencyConfig = {
-  critical: { color: 'bg-red-500', text: 'text-red-700', label: 'Crítica' },
-  high: { color: 'bg-amber-500', text: 'text-amber-700', label: 'Alta' },
-  medium: { color: 'bg-blue-500', text: 'text-blue-700', label: 'Media' },
-  low: { color: 'bg-slate-400', text: 'text-slate-600', label: 'Baja' },
+  critical: { color: 'bg-red-500', text: 'text-red-700', label: 'Crítica', bgLight: 'bg-red-50 border-red-200' },
+  high: { color: 'bg-amber-500', text: 'text-amber-700', label: 'Alta', bgLight: 'bg-amber-50 border-amber-200' },
+  medium: { color: 'bg-blue-500', text: 'text-blue-700', label: 'Media', bgLight: 'bg-blue-50 border-blue-200' },
+  low: { color: 'bg-slate-400', text: 'text-slate-600', label: 'Baja', bgLight: 'bg-slate-50 border-slate-200' },
+  immediate: { color: 'bg-red-600', text: 'text-red-700', label: 'Inmediata', bgLight: 'bg-red-50 border-red-300' },
+  soon: { color: 'bg-amber-500', text: 'text-amber-700', label: 'Pronto', bgLight: 'bg-amber-50 border-amber-200' },
+  scheduled: { color: 'bg-blue-500', text: 'text-blue-700', label: 'Programada', bgLight: 'bg-blue-50 border-blue-200' },
+  ok: { color: 'bg-emerald-500', text: 'text-emerald-700', label: 'OK', bgLight: 'bg-emerald-50 border-emerald-200' },
 };
 
 const brandColors = {
@@ -82,6 +88,15 @@ const appointmentStatusConfig = {
   cancelled: { color: 'bg-red-100 text-red-700', label: 'Cancelada' },
 };
 
+const clientColors = {
+  'Walmart': 'bg-blue-600',
+  'Costco': 'bg-red-600',
+  'HEB': 'bg-red-500',
+  'Soriana': 'bg-green-600',
+  'La Comer': 'bg-orange-500',
+  'Chedraui': 'bg-purple-600',
+};
+
 const Inventory = () => {
   const [loading, setLoading] = useState(true);
   const [inventory, setInventory] = useState(null);
@@ -89,20 +104,26 @@ const Inventory = () => {
   const [restockPlan, setRestockPlan] = useState(null);
   const [appointments, setAppointments] = useState(null);
   const [zones, setZones] = useState(null);
+  const [restockPredictions, setRestockPredictions] = useState(null);
+  const [restockTimeline, setRestockTimeline] = useState(null);
+  const [endClientsOverview, setEndClientsOverview] = useState(null);
+  const [selectedClientInventory, setSelectedClientInventory] = useState(null);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [brandFilter, setBrandFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [warehouseDoors, setWarehouseDoors] = useState(8);
   
   // Modals
-  const [showProductModal, setShowProductModal] = useState(false);
   const [showPositionsModal, setShowPositionsModal] = useState(false);
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [showClientDetailModal, setShowClientDetailModal] = useState(false);
   
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productPositions, setProductPositions] = useState(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
+  const [clientDetailLoading, setClientDetailLoading] = useState(false);
   
   // New product form
   const [newProduct, setNewProduct] = useState({
@@ -123,18 +144,24 @@ const Inventory = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [invRes, contRes, planRes, apptRes, zonesRes] = await Promise.all([
+      const [invRes, contRes, planRes, apptRes, zonesRes, predictRes, timelineRes, clientsRes] = await Promise.all([
         getInventory(),
         getContainersByProduct(),
         getRestockPlan(warehouseDoors),
         getAppointments(),
-        getWarehouseZones()
+        getWarehouseZones(),
+        getRestockPredictions(),
+        getRestockTimeline(30),
+        getEndClientsOverview()
       ]);
       setInventory(invRes.data);
       setContainers(contRes.data);
       setRestockPlan(planRes.data);
       setAppointments(apptRes.data);
       setZones(zonesRes.data);
+      setRestockPredictions(predictRes.data);
+      setRestockTimeline(timelineRes.data);
+      setEndClientsOverview(clientsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Error al cargar datos');
@@ -156,6 +183,21 @@ const Inventory = () => {
       toast.error('Error al cargar posiciones');
     } finally {
       setPositionsLoading(false);
+    }
+  };
+
+  const handleViewClientDetail = async (clientName) => {
+    setShowClientDetailModal(true);
+    setClientDetailLoading(true);
+    
+    try {
+      const response = await getEndClientInventory(clientName);
+      setSelectedClientInventory(response.data);
+    } catch (error) {
+      console.error('Error fetching client inventory:', error);
+      toast.error('Error al cargar inventario del cliente');
+    } finally {
+      setClientDetailLoading(false);
     }
   };
 
@@ -233,16 +275,16 @@ const Inventory = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario CEDIS</h1>
-          <p className="text-slate-500 mt-1">Gestión de stock, posiciones y citas - Pernod Ricard</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Inventario & Planificación</h1>
+          <p className="text-slate-500 mt-1">Gestión de stock, tiempos de tránsito y clientes finales</p>
         </div>
         
         <div className="flex gap-2">
-          <Button onClick={() => setShowNewProductModal(true)} className="rounded-sm bg-slate-900">
+          <Button onClick={() => setShowNewProductModal(true)} className="rounded-sm bg-slate-900" data-testid="new-product-btn">
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Producto
           </Button>
-          <Button onClick={() => setShowAppointmentModal(true)} variant="outline" className="rounded-sm">
+          <Button onClick={() => setShowAppointmentModal(true)} variant="outline" className="rounded-sm" data-testid="new-appointment-btn">
             <Calendar className="w-4 h-4 mr-2" />
             Nueva Cita
           </Button>
@@ -250,54 +292,300 @@ const Inventory = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card className="border-red-200 bg-red-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-red-600 uppercase tracking-wider font-medium">Crítico</p>
-            <p className="text-3xl font-bold text-red-700">{inventory?.summary?.critical || 0}</p>
+            <p className="text-xs text-red-600 uppercase tracking-wider font-medium">Crítico CEDIS</p>
+            <p className="text-2xl font-bold text-red-700">{inventory?.summary?.critical || 0}</p>
           </CardContent>
         </Card>
         <Card className="border-amber-200 bg-amber-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-amber-600 uppercase tracking-wider font-medium">Stock Bajo</p>
-            <p className="text-3xl font-bold text-amber-700">{inventory?.summary?.low || 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-emerald-200 bg-emerald-50 rounded-sm">
-          <CardContent className="p-4">
-            <p className="text-sm text-emerald-600 uppercase tracking-wider font-medium">Óptimo</p>
-            <p className="text-3xl font-bold text-emerald-700">{inventory?.summary?.optimal || 0}</p>
+            <p className="text-xs text-amber-600 uppercase tracking-wider font-medium">Pedir Inmediato</p>
+            <p className="text-2xl font-bold text-amber-700">{restockPredictions?.summary?.immediate_action_required || 0}</p>
           </CardContent>
         </Card>
         <Card className="border-blue-200 bg-blue-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-blue-600 uppercase tracking-wider font-medium">En Tránsito</p>
-            <p className="text-3xl font-bold text-blue-700">{containers?.summary?.total_containers || 0}</p>
+            <p className="text-xs text-blue-600 uppercase tracking-wider font-medium">En Tránsito</p>
+            <p className="text-2xl font-bold text-blue-700">{containers?.summary?.total_containers || 0}</p>
           </CardContent>
         </Card>
         <Card className="border-purple-200 bg-purple-50 rounded-sm">
           <CardContent className="p-4">
-            <p className="text-sm text-purple-600 uppercase tracking-wider font-medium">Citas Hoy</p>
-            <p className="text-3xl font-bold text-purple-700">{appointments?.by_status?.scheduled || 0}</p>
+            <p className="text-xs text-purple-600 uppercase tracking-wider font-medium">Clientes Finales</p>
+            <p className="text-2xl font-bold text-purple-700">{endClientsOverview?.total_clients || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-200 bg-orange-50 rounded-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-orange-600 uppercase tracking-wider font-medium">Críticos Retail</p>
+            <p className="text-2xl font-bold text-orange-700">{endClientsOverview?.total_critical_items || 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-200 bg-emerald-50 rounded-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-emerald-600 uppercase tracking-wider font-medium">Lead Time Prom.</p>
+            <p className="text-2xl font-bold text-emerald-700">{restockPredictions?.summary?.avg_lead_time_days || 0}d</p>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="inventory" className="space-y-6">
-        <TabsList className="bg-slate-100 rounded-sm">
-          <TabsTrigger value="inventory" className="rounded-sm data-[state=active]:bg-white">
-            <Box className="w-4 h-4 mr-2" />Inventario
+      <Tabs defaultValue="transit-planning" className="space-y-6">
+        <TabsList className="bg-slate-100 rounded-sm flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="transit-planning" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-transit-planning">
+            <Ship className="w-4 h-4 mr-2" />Planif. Tránsito
           </TabsTrigger>
-          <TabsTrigger value="positions" className="rounded-sm data-[state=active]:bg-white">
-            <Grid3X3 className="w-4 h-4 mr-2" />Posiciones
+          <TabsTrigger value="end-clients" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-end-clients">
+            <Store className="w-4 h-4 mr-2" />Clientes Finales
           </TabsTrigger>
-          <TabsTrigger value="appointments" className="rounded-sm data-[state=active]:bg-white">
+          <TabsTrigger value="inventory" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-inventory">
+            <Box className="w-4 h-4 mr-2" />Inventario CEDIS
+          </TabsTrigger>
+          <TabsTrigger value="appointments" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-appointments">
             <Calendar className="w-4 h-4 mr-2" />Citas
           </TabsTrigger>
-          <TabsTrigger value="containers" className="rounded-sm data-[state=active]:bg-white">
+          <TabsTrigger value="containers" className="rounded-sm data-[state=active]:bg-white" data-testid="tab-containers">
             <Package className="w-4 h-4 mr-2" />En Tránsito
           </TabsTrigger>
         </TabsList>
+
+        {/* Transit Planning Tab - NEW */}
+        <TabsContent value="transit-planning" className="space-y-6" data-testid="transit-planning-content">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Restock Predictions */}
+            <Card className="border-slate-200 rounded-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Timer className="w-5 h-5 text-blue-600" />
+                  Predicción de Reabastecimiento
+                </CardTitle>
+                <p className="text-sm text-slate-500">Cuándo pedir a origen considerando tiempo de tránsito</p>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3">
+                    {restockPredictions?.predictions?.slice(0, 15).map((pred, idx) => {
+                      const urgConf = urgencyConfig[pred.urgency_level] || urgencyConfig.ok;
+                      return (
+                        <div key={idx} className={`p-3 rounded-sm border ${urgConf.bgLight}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge className={brandColors[pred.brand] || 'bg-slate-100'}>{pred.brand}</Badge>
+                              <Badge variant="outline" className={`rounded-sm ${urgConf.text} border-current`}>
+                                {urgConf.label}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-slate-500 font-mono">{pred.sku}</span>
+                          </div>
+                          <p className="font-semibold text-slate-900 text-sm">{pred.product_name}</p>
+                          
+                          <div className="grid grid-cols-2 gap-4 mt-3 text-xs">
+                            <div>
+                              <p className="text-slate-500">Stock Actual</p>
+                              <p className="font-bold text-lg">{formatNumber(pred.current_stock)}</p>
+                            </div>
+                            <div>
+                              <p className="text-slate-500">Días hasta agotarse</p>
+                              <p className={`font-bold text-lg ${pred.days_until_stockout <= 7 ? 'text-red-600' : 'text-slate-900'}`}>
+                                {pred.days_until_stockout < 999 ? `${pred.days_until_stockout}d` : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 p-2 bg-white/50 rounded-sm">
+                            <div className="flex items-center gap-2 text-xs">
+                              <Route className="w-4 h-4 text-slate-400" />
+                              <span className="font-medium">{pred.route_details?.origin}</span>
+                              <ArrowRight className="w-3 h-3" />
+                              <span className="font-medium">{pred.route_details?.destination}</span>
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {pred.transit_time_days} días
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between mt-2 text-xs text-slate-600">
+                              <span>📅 Pedir: <strong>{pred.reorder_point_date}</strong></span>
+                              <span>📦 Llega: <strong>{pred.expected_delivery_date}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Timeline */}
+            <Card className="border-slate-200 rounded-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarClock className="w-5 h-5 text-purple-600" />
+                  Línea de Tiempo - Próximos 30 días
+                </CardTitle>
+                <p className="text-sm text-slate-500">Pedidos a origen y entregas esperadas</p>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4 flex gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-amber-500" />
+                    <span>Pedidos: {restockTimeline?.total_orders_planned || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                    <span>Entregas: {restockTimeline?.total_deliveries_expected || 0}</span>
+                  </div>
+                </div>
+                <ScrollArea className="h-[380px]">
+                  <div className="space-y-3">
+                    {restockTimeline?.timeline?.map((day, idx) => (
+                      <div key={idx} className="p-3 bg-slate-50 rounded-sm border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900">{day.date}</span>
+                            <Badge variant="outline" className="text-xs">{day.day_name}</Badge>
+                          </div>
+                          <div className="flex gap-2">
+                            {day.orders_count > 0 && (
+                              <Badge className="bg-amber-100 text-amber-700 rounded-sm">
+                                {day.orders_count} pedidos
+                              </Badge>
+                            )}
+                            {day.deliveries_count > 0 && (
+                              <Badge className="bg-emerald-100 text-emerald-700 rounded-sm">
+                                {day.deliveries_count} entregas
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {day.orders_to_place.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-xs text-amber-600 font-medium mb-1">📤 PEDIR A ORIGEN:</p>
+                            {day.orders_to_place.map((order, oIdx) => (
+                              <div key={oIdx} className="text-xs bg-amber-50 p-2 rounded mb-1 flex justify-between">
+                                <span>{order.product_name}</span>
+                                <span className="text-slate-500">{order.origin} • {formatNumber(order.quantity)} uds</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {day.deliveries_expected.length > 0 && (
+                          <div>
+                            <p className="text-xs text-emerald-600 font-medium mb-1">📥 ENTREGAS ESPERADAS:</p>
+                            {day.deliveries_expected.map((del, dIdx) => (
+                              <div key={dIdx} className="text-xs bg-emerald-50 p-2 rounded mb-1 flex justify-between">
+                                <span>{del.product_name}</span>
+                                <span className="text-slate-500">{formatNumber(del.quantity)} uds</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* End Clients Tab - NEW */}
+        <TabsContent value="end-clients" className="space-y-6" data-testid="end-clients-content">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Inventario de Clientes Finales</h3>
+              <p className="text-sm text-slate-500">Visibilidad de stock en tiendas de retail (Walmart, Costco, HEB, etc.)</p>
+            </div>
+          </div>
+
+          {/* Client Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {endClientsOverview?.clients?.map((client, idx) => {
+              const clientColor = clientColors[client.client_name] || 'bg-slate-600';
+              const isUrgent = client.restock_urgency === 'critical';
+              const isHigh = client.restock_urgency === 'high';
+              
+              return (
+                <Card 
+                  key={idx} 
+                  className={`border-2 rounded-sm cursor-pointer transition-all hover:shadow-md ${
+                    isUrgent ? 'border-red-300 bg-red-50' : isHigh ? 'border-amber-300 bg-amber-50' : 'border-slate-200'
+                  }`}
+                  onClick={() => handleViewClientDetail(client.client_name)}
+                  data-testid={`client-card-${client.client_name}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={`w-12 h-12 ${clientColor} rounded-sm flex items-center justify-center`}>
+                        <Building2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-lg">{client.client_name}</h4>
+                        <p className="text-xs text-slate-500">{client.total_stores} tiendas</p>
+                      </div>
+                      {isUrgent && <Badge className="bg-red-600 text-white ml-auto">CRÍTICO</Badge>}
+                      {isHigh && !isUrgent && <Badge className="bg-amber-600 text-white ml-auto">ALTO</Badge>}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="bg-white/70 p-2 rounded-sm">
+                        <p className="text-xs text-slate-500">Productos</p>
+                        <p className="font-bold">{formatNumber(client.products_tracked)}</p>
+                      </div>
+                      <div className="bg-white/70 p-2 rounded-sm">
+                        <p className="text-xs text-slate-500">Necesitan Restock</p>
+                        <p className="font-bold text-amber-600">{formatNumber(client.items_needing_restock)}</p>
+                      </div>
+                      <div className="bg-white/70 p-2 rounded-sm">
+                        <p className="text-xs text-slate-500">Críticos</p>
+                        <p className="font-bold text-red-600">{client.critical_stockouts}</p>
+                      </div>
+                      <div className="bg-white/70 p-2 rounded-sm">
+                        <p className="text-xs text-slate-500">Unidades a Enviar</p>
+                        <p className="font-bold text-blue-600">{formatNumber(client.total_units_to_ship)}</p>
+                      </div>
+                    </div>
+                    
+                    <Button variant="outline" className="w-full mt-4 rounded-sm" size="sm">
+                      Ver Detalle <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Summary Stats */}
+          <Card className="border-slate-200 rounded-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Resumen Total de Clientes Finales</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-slate-50 rounded-sm">
+                  <p className="text-3xl font-bold text-slate-900">{endClientsOverview?.total_clients || 0}</p>
+                  <p className="text-sm text-slate-500">Clientes</p>
+                </div>
+                <div className="text-center p-4 bg-red-50 rounded-sm">
+                  <p className="text-3xl font-bold text-red-600">{endClientsOverview?.total_critical_items || 0}</p>
+                  <p className="text-sm text-red-500">Items Críticos</p>
+                </div>
+                <div className="text-center p-4 bg-amber-50 rounded-sm">
+                  <p className="text-3xl font-bold text-amber-600">{endClientsOverview?.total_restock_items || 0}</p>
+                  <p className="text-sm text-amber-500">Necesitan Restock</p>
+                </div>
+                <div className="text-center p-4 bg-blue-50 rounded-sm">
+                  <p className="text-3xl font-bold text-blue-600">
+                    {formatNumber(endClientsOverview?.clients?.reduce((sum, c) => sum + c.total_units_to_ship, 0) || 0)}
+                  </p>
+                  <p className="text-sm text-blue-500">Unidades a Enviar</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Inventory Tab */}
         <TabsContent value="inventory" className="space-y-4">
@@ -380,52 +668,6 @@ const Inventory = () => {
           </Card>
         </TabsContent>
 
-        {/* Positions Tab */}
-        <TabsContent value="positions" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {zones?.zones?.map(zone => (
-              <Card key={zone.zone_id} className="border-slate-200 rounded-sm shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded ${zoneColors[zone.zone_id]}`} />
-                    {zone.zone_id} - {zone.categories[0]}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-slate-500">{zone.description}</p>
-                  <p className="text-xs text-slate-400 mt-1">{zone.categories.join(', ')}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <Card className="border-slate-200 rounded-sm">
-            <CardHeader>
-              <CardTitle className="text-lg">Mapa de Almacén</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-8 gap-2">
-                {[...Array(8)].map((_, doorIdx) => (
-                  <div key={doorIdx} className="text-center">
-                    <div className="w-full h-12 bg-slate-800 rounded-t-sm flex items-center justify-center">
-                      <DoorOpen className="w-5 h-5 text-white" />
-                    </div>
-                    <p className="text-xs font-bold mt-1">Puerta {doorIdx + 1}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-5 gap-4 mt-6">
-                {['A', 'B', 'C', 'D', 'E'].map(zone => (
-                  <div key={zone} className={`p-4 rounded-sm ${zoneColors[zone]} text-white text-center`}>
-                    <p className="font-bold text-lg">Zona {zone}</p>
-                    <p className="text-sm opacity-90">{zones?.zones?.find(z => z.zone_id === zone)?.categories[0]}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Appointments Tab */}
         <TabsContent value="appointments" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -501,11 +743,11 @@ const Inventory = () => {
               {containers?.products_in_transit?.map((product, idx) => {
                 const urgency = urgencyConfig[product.delivery_urgency];
                 return (
-                  <Card key={product.sku} className={`border-l-4 ${urgency.color} rounded-sm`}>
+                  <Card key={product.sku} className={`border-l-4 ${urgency?.color || 'border-slate-400'} rounded-sm`}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Badge className={brandColors[product.brand] || 'bg-slate-100'}>{product.brand}</Badge>
-                        <Badge variant="outline" className={`rounded-sm ${urgency.text}`}>Prioridad: {urgency.label}</Badge>
+                        <Badge variant="outline" className={`rounded-sm ${urgency?.text || 'text-slate-600'}`}>Prioridad: {urgency?.label || 'N/A'}</Badge>
                       </div>
                       <h3 className="font-semibold text-slate-900">{product.product_name}</h3>
                       <div className="grid grid-cols-4 gap-4 mt-3 p-3 bg-slate-50 rounded-sm">
@@ -590,6 +832,83 @@ const Inventory = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Detail Modal */}
+      <Dialog open={showClientDetailModal} onOpenChange={setShowClientDetailModal}>
+        <DialogContent className="sm:max-w-[900px] max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="w-5 h-5 text-purple-600" />
+              Inventario de {selectedClientInventory?.client_name}
+            </DialogTitle>
+            <DialogDescription>
+              Detalle de stock por tienda y producto
+            </DialogDescription>
+          </DialogHeader>
+          {clientDetailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : selectedClientInventory && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="p-3 bg-slate-50 rounded-sm text-center">
+                  <p className="text-2xl font-bold">{selectedClientInventory.summary?.total_locations}</p>
+                  <p className="text-xs text-slate-500">Tiendas</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-sm text-center">
+                  <p className="text-2xl font-bold">{selectedClientInventory.summary?.products_tracked}</p>
+                  <p className="text-xs text-slate-500">Productos</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-sm text-center">
+                  <p className="text-2xl font-bold text-red-600">{selectedClientInventory.summary?.critical_stockouts}</p>
+                  <p className="text-xs text-red-500">Críticos</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-sm text-center">
+                  <p className="text-2xl font-bold text-blue-600">{formatNumber(selectedClientInventory.summary?.total_units_to_ship)}</p>
+                  <p className="text-xs text-blue-500">Unidades a Enviar</p>
+                </div>
+              </div>
+
+              {/* Stores List */}
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-4">
+                  {selectedClientInventory.stores?.slice(0, 10).map((store, idx) => (
+                    <Card key={idx} className={`border rounded-sm ${store.critical_count > 0 ? 'border-red-200 bg-red-50' : 'border-slate-200'}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <p className="font-semibold">{store.store_name}</p>
+                            <p className="text-xs text-slate-500 font-mono">{store.store_code}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            {store.critical_count > 0 && (
+                              <Badge className="bg-red-600 text-white">{store.critical_count} críticos</Badge>
+                            )}
+                            {store.needs_restock_count > 0 && (
+                              <Badge className="bg-amber-100 text-amber-700">{store.needs_restock_count} restock</Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {store.products?.slice(0, 4).map((prod, pIdx) => (
+                            <div key={pIdx} className={`p-2 rounded-sm text-xs ${prod.days_of_stock <= 3 ? 'bg-red-100' : prod.needs_restock ? 'bg-amber-100' : 'bg-white'}`}>
+                              <p className="font-medium truncate">{prod.product_name}</p>
+                              <p className="text-slate-500">Stock: {prod.current_stock} ({prod.days_of_stock}d)</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </ScrollArea>
             </div>
           )}
