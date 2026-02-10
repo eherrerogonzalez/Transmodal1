@@ -2795,6 +2795,41 @@ async def get_orders(user: dict = Depends(verify_token)):
         ))
     return orders
 
+# IMPORTANT: These specific routes MUST come before /orders/{order_id}
+@api_router.get("/orders/pending-origin")
+async def get_pending_origin_orders_route(user: dict = Depends(verify_token)):
+    """Get pending orders to origin that need confirmation"""
+    pending = generate_pending_origin_orders()
+    
+    return {
+        "pending_orders": [p.model_dump() for p in pending],
+        "total": len(pending),
+        "emergency_count": len([p for p in pending if "EMERGENCIA" in p.reason]),
+        "total_containers_needed": len(pending),
+        "message": f"Tienes {len(pending)} pedidos a origen pendientes de confirmar"
+    }
+
+@api_router.get("/orders/pending-distribution")
+async def get_pending_distribution_orders_route(user: dict = Depends(verify_token)):
+    """Get pending distribution orders that need confirmation"""
+    pending = generate_pending_distribution_orders()
+    
+    by_client = {}
+    for p in pending:
+        if p.client_name not in by_client:
+            by_client[p.client_name] = {"count": 0, "units": 0}
+        by_client[p.client_name]["count"] += 1
+        by_client[p.client_name]["units"] += p.suggested_quantity
+    
+    return {
+        "pending_orders": [p.model_dump() for p in pending],
+        "total": len(pending),
+        "critical_count": len([p for p in pending if p.priority == "critical"]),
+        "by_client": by_client,
+        "total_units": sum(p.suggested_quantity for p in pending),
+        "message": f"Tienes {len(pending)} distribuciones pendientes de confirmar"
+    }
+
 @api_router.post("/orders", response_model=Order)
 async def create_order(order_data: OrderCreate, user: dict = Depends(verify_token)):
     """Create a new order"""
