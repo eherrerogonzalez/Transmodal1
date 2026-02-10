@@ -432,6 +432,14 @@ async def get_containers(user: dict = Depends(verify_token)):
             lat = origin_port["lat"] + (dest_port["lat"] - origin_port["lat"]) * progress
             lng = origin_port["lng"] + (dest_port["lng"] - origin_port["lng"]) * progress
         
+        # Determine if invoiced (delivered containers are usually invoiced)
+        is_invoiced = status == "Entregado" or (status == "En Puerto Destino" and random.random() > 0.5)
+        invoice_date = (datetime.now(timezone.utc) - timedelta(days=random.randint(1, 5))).isoformat() if is_invoiced else None
+        
+        # Determine if has additionals
+        has_additionals = random.random() > 0.6
+        additionals_count = random.randint(1, 4) if has_additionals else 0
+        
         containers.append(Container(
             container_number=generate_container_number(),
             type=random.choice(CONTAINER_TYPES),
@@ -443,7 +451,12 @@ async def get_containers(user: dict = Depends(verify_token)):
             eta=(datetime.now(timezone.utc).isoformat() if status != "Entregado" else None),
             latitude=lat,
             longitude=lng,
-            transport_mode=transport_mode
+            transport_mode=transport_mode,
+            is_invoiced=is_invoiced,
+            invoice_number=f"FAC-{random.randint(100000, 999999)}" if is_invoiced else None,
+            invoice_date=invoice_date,
+            has_additionals=has_additionals,
+            additionals_count=additionals_count
         ))
     return containers
 
