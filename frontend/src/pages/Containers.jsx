@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getContainers, getContainerTracking } from '../lib/api';
+import { getContainers, getContainerTracking, getContainerAdditionals } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { ScrollArea } from '../components/ui/scroll-area';
+import { Separator } from '../components/ui/separator';
 import { 
   Search, 
   Filter,
@@ -44,7 +45,13 @@ import {
   ArrowRight,
   Circle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Receipt,
+  AlertTriangle,
+  X,
+  DollarSign,
+  FileCheck,
+  FileX
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -87,6 +94,22 @@ const trackingEventIcons = {
   'cedis_arrival': Building,
   'warehouse_departure': Package,
   'empty_return': Package,
+};
+
+const additionalTypeColors = {
+  'DEMORA': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  'ALMACENAJE': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  'MANIOBRA': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+  'INSPECCION': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+  'TRANSPORTE': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+  'SEGURO': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  'DOCUMENTACION': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+};
+
+const additionalStatusConfig = {
+  'pending': { label: 'Pendiente', color: 'bg-amber-100 text-amber-800', icon: Clock },
+  'approved': { label: 'Aprobado', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle },
+  'rejected': { label: 'Rechazado', color: 'bg-red-100 text-red-800', icon: X },
 };
 
 const TrackingTimeline = ({ tracking, loading }) => {
@@ -235,6 +258,109 @@ const TrackingTimeline = ({ tracking, loading }) => {
   );
 };
 
+const AdditionalsPopup = ({ additionals, loading, containerNumber }) => {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!additionals || additionals.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-500">
+        <Receipt className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+        <p>No hay adicionales para este contenedor</p>
+      </div>
+    );
+  }
+
+  const totalAmount = additionals.reduce((sum, add) => sum + add.amount, 0);
+  const pendingCount = additionals.filter(a => a.status === 'pending').length;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 bg-slate-50 rounded-sm border border-slate-200">
+          <p className="text-sm text-slate-500 uppercase tracking-wider">Total Adicionales</p>
+          <p className="text-2xl font-bold text-slate-900">{additionals.length}</p>
+        </div>
+        <div className="p-4 bg-amber-50 rounded-sm border border-amber-200">
+          <p className="text-sm text-amber-600 uppercase tracking-wider">Pendientes</p>
+          <p className="text-2xl font-bold text-amber-700">{pendingCount}</p>
+        </div>
+        <div className="p-4 bg-slate-50 rounded-sm border border-slate-200">
+          <p className="text-sm text-slate-500 uppercase tracking-wider">Monto Total</p>
+          <p className="text-2xl font-bold text-slate-900">
+            ${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Additionals List */}
+      <div className="space-y-3">
+        {additionals.map((additional, index) => {
+          const typeColor = additionalTypeColors[additional.type] || additionalTypeColors.DOCUMENTACION;
+          const statusConf = additionalStatusConfig[additional.status] || additionalStatusConfig.pending;
+          const StatusIcon = statusConf.icon;
+
+          return (
+            <div 
+              key={additional.id}
+              className={`p-4 rounded-sm border ${typeColor.border} ${typeColor.bg} animate-fade-in`}
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  {/* Type and Reason Code */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className={`rounded-sm font-mono text-xs ${typeColor.text} ${typeColor.border}`}>
+                      {additional.reason_code}
+                    </Badge>
+                    <Badge className={`rounded-sm text-xs ${typeColor.bg} ${typeColor.text}`}>
+                      {additional.type}
+                    </Badge>
+                  </div>
+                  
+                  {/* Description */}
+                  <p className="font-medium text-slate-900 mb-2">{additional.reason_description}</p>
+                  
+                  {/* Dates */}
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Calendar className="w-3 h-3" />
+                      <span>Solicitado: {new Date(additional.requested_at).toLocaleDateString('es-MX')}</span>
+                    </div>
+                    {additional.approved_at && (
+                      <div className="flex items-center gap-1.5 text-emerald-600">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Aprobado: {new Date(additional.approved_at).toLocaleDateString('es-MX')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Amount and Status */}
+                <div className="text-right">
+                  <p className="text-xl font-bold text-slate-900 mb-2">
+                    ${additional.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </p>
+                  <Badge className={`rounded-sm ${statusConf.color}`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {statusConf.label}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const Containers = () => {
   const [containers, setContainers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -247,6 +373,11 @@ const Containers = () => {
   const [selectedContainer, setSelectedContainer] = useState(null);
   const [tracking, setTracking] = useState(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
+  
+  // Additionals modal state
+  const [showAdditionalsModal, setShowAdditionalsModal] = useState(false);
+  const [additionals, setAdditionals] = useState(null);
+  const [additionalsLoading, setAdditionalsLoading] = useState(false);
 
   useEffect(() => {
     fetchContainers();
@@ -277,6 +408,22 @@ const Containers = () => {
       toast.error('Error al cargar el tracking');
     } finally {
       setTrackingLoading(false);
+    }
+  };
+
+  const handleViewAdditionals = async (container) => {
+    setSelectedContainer(container);
+    setShowAdditionalsModal(true);
+    setAdditionalsLoading(true);
+    
+    try {
+      const response = await getContainerAdditionals(container.id);
+      setAdditionals(response.data);
+    } catch (error) {
+      console.error('Error fetching additionals:', error);
+      toast.error('Error al cargar los adicionales');
+    } finally {
+      setAdditionalsLoading(false);
     }
   };
 
@@ -417,9 +564,6 @@ const Containers = () => {
                   Contenedor
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Tipo / Tamaño
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Ruta
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -429,14 +573,20 @@ const Containers = () => {
                   Estado
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
-                  Tracking
+                  Facturado
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                  Adicionales
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">
+                  Acciones
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredContainers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12">
+                  <TableCell colSpan={7} className="text-center py-12">
                     <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                     <p className="text-slate-500">No se encontraron contenedores</p>
                   </TableCell>
@@ -454,24 +604,21 @@ const Containers = () => {
                   return (
                     <TableRow 
                       key={container.id}
-                      className="hover:bg-slate-50 transition-colors animate-fade-in cursor-pointer"
+                      className="hover:bg-slate-50 transition-colors animate-fade-in"
                       style={{ animationDelay: `${index * 0.03}s` }}
                     >
-                      <TableCell className="font-mono font-medium text-slate-900">
-                        {container.container_number}
-                      </TableCell>
-                      <TableCell className="text-slate-600">
+                      <TableCell>
                         <div>
-                          <p className="font-medium">{container.type}</p>
-                          <p className="text-sm text-slate-400">{container.size}</p>
+                          <p className="font-mono font-medium text-slate-900">{container.container_number}</p>
+                          <p className="text-xs text-slate-400">{container.type} - {container.size}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-slate-600">
                         <div className="flex items-center gap-2">
                           <MapPin className="w-4 h-4 text-slate-400" />
-                          <span>{container.origin}</span>
+                          <span className="text-sm">{container.origin}</span>
                           <ArrowRight className="w-3 h-3 text-slate-300" />
-                          <span>{container.destination}</span>
+                          <span className="text-sm">{container.destination}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -490,6 +637,38 @@ const Containers = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
+                        {container.is_invoiced ? (
+                          <div className="flex flex-col items-center">
+                            <Badge className="bg-emerald-100 text-emerald-700 rounded-sm">
+                              <FileCheck className="w-3 h-3 mr-1" />
+                              Facturado
+                            </Badge>
+                            <span className="text-xs text-slate-400 mt-1">{container.invoice_number}</span>
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="rounded-sm text-slate-500 border-slate-300">
+                            <FileX className="w-3 h-3 mr-1" />
+                            Sin Facturar
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {container.has_additionals ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-sm border-amber-300 text-amber-700 hover:bg-amber-50"
+                            onClick={() => handleViewAdditionals(container)}
+                            data-testid={`view-additionals-${container.id}`}
+                          >
+                            <AlertTriangle className="w-4 h-4 mr-1" />
+                            {container.additionals_count} Adicional{container.additionals_count > 1 ? 'es' : ''}
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-slate-400">Sin adicionales</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
                         <Button
                           variant="outline"
                           size="sm"
@@ -498,7 +677,7 @@ const Containers = () => {
                           data-testid={`view-tracking-${container.id}`}
                         >
                           <Eye className="w-4 h-4 mr-1" />
-                          Ver Tracking
+                          Tracking
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -535,24 +714,71 @@ const Containers = () => {
                       {selectedContainer.origin} → {selectedContainer.destination}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-slate-500 uppercase tracking-wider">Tipo</p>
-                    <p className="text-sm font-medium text-slate-700">
-                      {selectedContainer.type} - {selectedContainer.size}
-                    </p>
+                  <div className="flex gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`rounded-sm ${statusConfig[selectedContainer.status]?.color || 'bg-slate-50'}`}
+                    >
+                      {selectedContainer.status}
+                    </Badge>
+                    {selectedContainer.is_invoiced ? (
+                      <Badge className="bg-emerald-100 text-emerald-700 rounded-sm">
+                        <FileCheck className="w-3 h-3 mr-1" />
+                        Facturado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-sm text-slate-500">
+                        Sin Facturar
+                      </Badge>
+                    )}
                   </div>
-                  <Badge 
-                    variant="outline" 
-                    className={`rounded-sm ${statusConfig[selectedContainer.status]?.color || 'bg-slate-50'}`}
-                  >
-                    {selectedContainer.status}
-                  </Badge>
                 </div>
               </div>
 
               {/* Timeline */}
               <ScrollArea className="h-[450px] pr-4">
                 <TrackingTimeline tracking={tracking} loading={trackingLoading} />
+              </ScrollArea>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Additionals Modal */}
+      <Dialog open={showAdditionalsModal} onOpenChange={setShowAdditionalsModal}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-3">
+              <Receipt className="w-6 h-6 text-amber-600" />
+              Adicionales del Contenedor
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedContainer && (
+            <div className="space-y-4">
+              {/* Container Info Header */}
+              <div className="p-4 bg-slate-50 rounded-sm border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-500 uppercase tracking-wider">Contenedor</p>
+                    <p className="text-lg font-mono font-bold text-slate-900">{selectedContainer.container_number}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-slate-500 uppercase tracking-wider">Ruta</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {selectedContainer.origin} → {selectedContainer.destination}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additionals List */}
+              <ScrollArea className="h-[450px] pr-4">
+                <AdditionalsPopup 
+                  additionals={additionals} 
+                  loading={additionalsLoading}
+                  containerNumber={selectedContainer.container_number}
+                />
               </ScrollArea>
             </div>
           )}
