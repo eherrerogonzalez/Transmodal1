@@ -544,6 +544,275 @@ async def get_container_additionals(container_id: str, user: dict = Depends(veri
     count = random.randint(1, 5)
     return generate_container_additionals(container_id, count)
 
+# ==================== PLANNING ENDPOINTS ====================
+
+def generate_historical_data(years: int = 3):
+    """Generate historical data for the past years"""
+    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    current_year = datetime.now().year
+    historical = []
+    
+    # Base values that grow slightly each year
+    base_containers = 25
+    base_cost = 4500
+    extra_cost_ratio = 0.12  # 12% extra costs on average
+    
+    for year_offset in range(years, 0, -1):
+        year = current_year - year_offset
+        growth_factor = 1 + (years - year_offset) * 0.08  # 8% annual growth
+        
+        for month_idx, month in enumerate(months):
+            # Seasonal variation - more containers in Q4
+            seasonal_factor = 1.0
+            if month_idx >= 9:  # Oct-Dec
+                seasonal_factor = 1.3
+            elif month_idx >= 6:  # Jul-Sep
+                seasonal_factor = 1.1
+            elif month_idx <= 1:  # Jan-Feb
+                seasonal_factor = 0.85
+            
+            containers = int(base_containers * growth_factor * seasonal_factor * random.uniform(0.9, 1.1))
+            logistics_cost = round(containers * base_cost * random.uniform(0.95, 1.05), 2)
+            extra_costs = round(logistics_cost * extra_cost_ratio * random.uniform(0.8, 1.4), 2)
+            
+            historical.append(HistoricalData(
+                year=year,
+                month=month,
+                containers=containers,
+                logistics_cost=logistics_cost,
+                extra_costs=extra_costs,
+                avg_cost_per_container=round(logistics_cost / containers, 2) if containers > 0 else 0
+            ))
+    
+    return historical
+
+def generate_forecast(historical_data: List[HistoricalData], forecast_year: int, warehouse_config: WarehouseConfig):
+    """Generate forecast based on historical data"""
+    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    
+    # Calculate averages and trends from historical data
+    yearly_totals = {}
+    for h in historical_data:
+        if h.year not in yearly_totals:
+            yearly_totals[h.year] = {"containers": 0, "cost": 0, "extras": 0}
+        yearly_totals[h.year]["containers"] += h.containers
+        yearly_totals[h.year]["cost"] += h.logistics_cost
+        yearly_totals[h.year]["extras"] += h.extra_costs
+    
+    # Calculate growth rate
+    years = sorted(yearly_totals.keys())
+    if len(years) >= 2:
+        growth_rate = (yearly_totals[years[-1]]["containers"] / yearly_totals[years[0]]["containers"]) ** (1 / len(years)) - 1
+    else:
+        growth_rate = 0.08  # Default 8% growth
+    
+    # Calculate monthly patterns (seasonality)
+    monthly_patterns = {m: [] for m in months}
+    for h in historical_data:
+        monthly_patterns[h.month].append(h.containers)
+    
+    monthly_avg = {m: sum(v) / len(v) if v else 0 for m, v in monthly_patterns.items()}
+    total_avg = sum(monthly_avg.values()) / 12
+    seasonality = {m: v / total_avg if total_avg > 0 else 1 for m, v in monthly_avg.items()}
+    
+    # Generate forecast
+    last_year_containers = yearly_totals[years[-1]]["containers"] if years else 300
+    last_year_cost = yearly_totals[years[-1]]["cost"] if years else 1500000
+    last_year_extras = yearly_totals[years[-1]]["extras"] if years else 180000
+    
+    forecasted_annual_containers = int(last_year_containers * (1 + growth_rate))
+    monthly_forecast = []
+    
+    for month_idx, month in enumerate(months):
+        seasonal = seasonality.get(month, 1)
+        base_monthly = forecasted_annual_containers / 12
+        
+        forecasted_containers = int(base_monthly * seasonal * random.uniform(0.95, 1.05))
+        forecasted_cost = round(forecasted_containers * (last_year_cost / last_year_containers) * 1.03, 2)  # 3% cost inflation
+        forecasted_extras = round(forecasted_cost * 0.12 * random.uniform(0.9, 1.2), 2)
+        
+        # Confidence decreases for further months
+        confidence = max(0.7, 0.95 - (month_idx * 0.02))
+        
+        monthly_forecast.append(ForecastData(
+            month=month,
+            month_num=month_idx + 1,
+            forecasted_containers=forecasted_containers,
+            forecasted_logistics_cost=forecasted_cost,
+            forecasted_extra_costs=forecasted_extras,
+            confidence_level=round(confidence, 2)
+        ))
+    
+    return monthly_forecast, forecasted_annual_containers, growth_rate
+
+def generate_delivery_calendar(monthly_forecast: List[ForecastData], warehouse_config: WarehouseConfig):
+    """Generate delivery calendar based on forecast and warehouse capacity"""
+    calendar = []
+    current_date = datetime.now()
+    
+    # Working days mapping
+    day_names = {
+        0: "Lunes", 1: "Martes", 2: "Miércoles", 
+        3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"
+    }
+    working_days_idx = [k for k, v in day_names.items() if v in warehouse_config.working_days]
+    
+    # Generate calendar for next 30 days
+    containers_to_schedule = monthly_forecast[current_date.month - 1].forecasted_containers if monthly_forecast else 30
+    containers_per_day = containers_to_schedule // 22  # ~22 working days per month
+    
+    for day_offset in range(30):
+        date = current_date + timedelta(days=day_offset)
+        day_of_week = date.weekday()
+        
+        if day_of_week in working_days_idx:
+            # Schedule containers for this day
+            scheduled = min(
+                containers_per_day + random.randint(-2, 3),
+                warehouse_config.max_containers_per_day
+            )
+            scheduled = max(0, scheduled)
+            
+            utilization = (scheduled / warehouse_config.max_containers_per_day) * 100 if warehouse_config.max_containers_per_day > 0 else 0
+            
+            # Generate container details
+            containers = []
+            for i in range(scheduled):
+                containers.append({
+                    "container_number": generate_container_number(),
+                    "eta": f"{random.randint(8, 16)}:{random.choice(['00', '30'])}",
+                    "origin": random.choice([p["name"] for p in PORTS]),
+                    "type": random.choice(CONTAINER_TYPES)
+                })
+            
+            calendar.append(DeliverySlot(
+                date=date.strftime("%Y-%m-%d"),
+                day_name=day_names[day_of_week],
+                scheduled_containers=scheduled,
+                max_capacity=warehouse_config.max_containers_per_day,
+                utilization_percent=round(utilization, 1),
+                containers=containers
+            ))
+    
+    return calendar
+
+@api_router.get("/planning/historical")
+async def get_historical_data(user: dict = Depends(verify_token)):
+    """Get historical logistics data for planning"""
+    historical = generate_historical_data(3)
+    
+    # Aggregate by year
+    yearly_summary = {}
+    for h in historical:
+        if h.year not in yearly_summary:
+            yearly_summary[h.year] = {
+                "containers": 0,
+                "logistics_cost": 0,
+                "extra_costs": 0,
+                "months": []
+            }
+        yearly_summary[h.year]["containers"] += h.containers
+        yearly_summary[h.year]["logistics_cost"] += h.logistics_cost
+        yearly_summary[h.year]["extra_costs"] += h.extra_costs
+        yearly_summary[h.year]["months"].append(h.model_dump())
+    
+    return {
+        "historical_data": [h.model_dump() for h in historical],
+        "yearly_summary": yearly_summary
+    }
+
+@api_router.get("/planning/forecast")
+async def get_planning_forecast(
+    doors: int = 8,
+    user: dict = Depends(verify_token)
+):
+    """Get complete planning forecast with delivery calendar"""
+    forecast_year = datetime.now().year + 1
+    
+    # Warehouse configuration
+    warehouse = WarehouseConfig(
+        name="CEDIS Principal",
+        doors=doors,
+        max_containers_per_day=doors,  # 1 container per door per day
+        operating_hours="07:00-19:00",
+        working_days=["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+    )
+    
+    # Get historical data
+    historical = generate_historical_data(3)
+    
+    # Generate forecast
+    monthly_forecast, annual_containers, growth_rate = generate_forecast(historical, forecast_year, warehouse)
+    
+    # Generate delivery calendar
+    delivery_calendar = generate_delivery_calendar(monthly_forecast, warehouse)
+    
+    # Calculate summaries
+    total_forecasted_cost = sum(m.forecasted_logistics_cost for m in monthly_forecast)
+    total_forecasted_extras = sum(m.forecasted_extra_costs for m in monthly_forecast)
+    
+    # Get current year actuals for comparison
+    current_year = datetime.now().year
+    current_year_data = [h for h in historical if h.year == current_year - 1]  # Use last full year
+    actual_containers = sum(h.containers for h in current_year_data)
+    actual_cost = sum(h.logistics_cost for h in current_year_data)
+    actual_extras = sum(h.extra_costs for h in current_year_data)
+    
+    # Calculate working days per month for capacity planning
+    working_days_per_month = 22  # Average
+    monthly_capacity = warehouse.max_containers_per_day * working_days_per_month
+    annual_capacity = monthly_capacity * 12
+    
+    return PlanningForecast(
+        year=forecast_year,
+        historical_summary={
+            "years_analyzed": 3,
+            "total_historical_containers": sum(h.containers for h in historical),
+            "avg_monthly_containers": round(sum(h.containers for h in historical) / len(historical), 1),
+            "growth_rate_percent": round(growth_rate * 100, 1),
+            "avg_cost_per_container": round(sum(h.logistics_cost for h in historical) / sum(h.containers for h in historical), 2),
+            "extra_cost_ratio_percent": round((sum(h.extra_costs for h in historical) / sum(h.logistics_cost for h in historical)) * 100, 1)
+        },
+        annual_forecast={
+            "forecasted_containers": sum(m.forecasted_containers for m in monthly_forecast),
+            "forecasted_logistics_cost": round(total_forecasted_cost, 2),
+            "forecasted_extra_costs": round(total_forecasted_extras, 2),
+            "total_forecasted_budget": round(total_forecasted_cost + total_forecasted_extras, 2),
+            "avg_monthly_containers": round(sum(m.forecasted_containers for m in monthly_forecast) / 12, 1),
+            "warehouse_capacity": {
+                "doors": warehouse.doors,
+                "daily_capacity": warehouse.max_containers_per_day,
+                "monthly_capacity": monthly_capacity,
+                "annual_capacity": annual_capacity,
+                "utilization_forecast_percent": round((sum(m.forecasted_containers for m in monthly_forecast) / annual_capacity) * 100, 1)
+            }
+        },
+        monthly_forecast=[m.model_dump() for m in monthly_forecast],
+        delivery_calendar=[d.model_dump() for d in delivery_calendar],
+        budget_comparison={
+            "previous_year": {
+                "year": current_year - 1,
+                "containers": actual_containers,
+                "logistics_cost": round(actual_cost, 2),
+                "extra_costs": round(actual_extras, 2),
+                "total": round(actual_cost + actual_extras, 2)
+            },
+            "forecast": {
+                "year": forecast_year,
+                "containers": sum(m.forecasted_containers for m in monthly_forecast),
+                "logistics_cost": round(total_forecasted_cost, 2),
+                "extra_costs": round(total_forecasted_extras, 2),
+                "total": round(total_forecasted_cost + total_forecasted_extras, 2)
+            },
+            "variance": {
+                "containers_diff": sum(m.forecasted_containers for m in monthly_forecast) - actual_containers,
+                "containers_percent": round(((sum(m.forecasted_containers for m in monthly_forecast) - actual_containers) / actual_containers) * 100, 1) if actual_containers > 0 else 0,
+                "cost_diff": round((total_forecasted_cost + total_forecasted_extras) - (actual_cost + actual_extras), 2),
+                "cost_percent": round((((total_forecasted_cost + total_forecasted_extras) - (actual_cost + actual_extras)) / (actual_cost + actual_extras)) * 100, 1) if (actual_cost + actual_extras) > 0 else 0
+            }
+        }
+    )
+
 @api_router.get("/containers/locations/all", response_model=List[ContainerLocation])
 async def get_all_container_locations(user: dict = Depends(verify_token)):
     """Get all container locations for map display"""
