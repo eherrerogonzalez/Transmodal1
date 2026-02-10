@@ -819,6 +819,229 @@ def generate_restock_predictions(inventory: List[InventoryItem]):
     
     return predictions
 
+def generate_supply_chain_plan():
+    """
+    Genera planificación integrada de cadena de suministro:
+    ORIGEN → INBOUND → CEDIS → DISTRIBUCIÓN → CLIENTE FINAL
+    
+    El objetivo es que el cliente final NUNCA se quede sin producto.
+    """
+    plans = []
+    
+    # Obtener inventario de CEDIS
+    cedis_inventory = generate_cedis_inventory()
+    cedis_by_sku = {item.sku: item for item in cedis_inventory}
+    
+    # Obtener demanda de todos los clientes finales
+    all_end_client_inventory = generate_end_client_inventory()
+    
+    # Agrupar demanda por SKU
+    demand_by_sku = {}
+    for item in all_end_client_inventory:
+        if item.sku not in demand_by_sku:
+            demand_by_sku[item.sku] = {
+                "total_demand": 0,
+                "locations_needing": 0,
+                "critical_locations": 0,
+                "earliest_stockout": None,
+                "items": []
+            }
+        
+        if item.needs_restock:
+            demand_by_sku[item.sku]["total_demand"] += item.suggested_quantity
+            demand_by_sku[item.sku]["locations_needing"] += 1
+            
+            if item.days_of_stock <= 3:
+                demand_by_sku[item.sku]["critical_locations"] += 1
+            
+            # Track earliest stockout
+            if item.estimated_stockout_date:
+                current_earliest = demand_by_sku[item.sku]["earliest_stockout"]
+                if not current_earliest or item.estimated_stockout_date < current_earliest:
+                    demand_by_sku[item.sku]["earliest_stockout"] = item.estimated_stockout_date
+            
+            demand_by_sku[item.sku]["items"].append(item)
+    
+    # Generar plan para cada SKU
+    for product in PERNOD_RICARD_PRODUCTS:
+        sku = product["sku"]
+        cedis_item = cedis_by_sku.get(sku)
+        demand_info = demand_by_sku.get(sku, {"total_demand": 0, "locations_needing": 0, "critical_locations": 0, "earliest_stockout": None, "items": []})
+        
+        if not cedis_item:
+            continue
+        
+        # Calcular si CEDIS puede surtir la demanda
+        total_demand = demand_info["total_demand"]
+        can_fulfill = cedis_item.current_stock >= total_demand
+        deficit = max(0, total_demand - cedis_item.current_stock)
+        
+        # Obtener ruta de tránsito
+        route = get_transit_route()
+        inbound_lead_time = route["total_lead_time"]
+        
+        # Calcular tiempo de distribución promedio
+        avg_distribution_time = 2  # días promedio CEDIS → cliente final
+        
+        # Fechas críticas
+        earliest_stockout = demand_info["earliest_stockout"]
+        today = datetime.now(timezone.utc).date()
+        
+        # Cuándo debe salir de CEDIS para evitar desabasto
+        ship_by_date = None
+        if earliest_stockout:
+            stockout_date = datetime.strptime(earliest_stockout, "%Y-%m-%d").date()
+            ship_by = stockout_date - timedelta(days=avg_distribution_time)
+            ship_by_date = ship_by.strftime("%Y-%m-%d")
+        
+        # Cuándo pedir a origen
+        cedis_reorder_date = None
+        expected_inbound = None
+        if not can_fulfill or cedis_item.stock_status in ["critical", "low"]:
+            # Necesita inbound - calcular fecha de pedido
+            if ship_by_date:
+                ship_by = datetime.strptime(ship_by_date, "%Y-%m-%d").date()
+                reorder_date = ship_by - timedelta(days=inbound_lead_time)
+                cedis_reorder_date = max(today, reorder_date).strftime("%Y-%m-%d")
+                expected_inbound = (datetime.strptime(cedis_reorder_date, "%Y-%m-%d").date() + timedelta(days=inbound_lead_time)).strftime("%Y-%m-%d")
+            else:
+                # No hay stockout inmediato, pero CEDIS está bajo
+                days_until_cedis_min = (cedis_item.current_stock - cedis_item.minimum_stock) / (cedis_item.current_stock / cedis_item.days_of_stock) if cedis_item.days_of_stock > 0 else 30
+                reorder_date = today + timedelta(days=max(0, days_until_cedis_min - inbound_lead_time))
+                cedis_reorder_date = reorder_date.strftime("%Y-%m-%d")
+                expected_inbound = (reorder_date + timedelta(days=inbound_lead_time)).strftime("%Y-%m-%d")
+        
+        # Determinar acción requerida
+        if demand_info["critical_locations"] > 0 and not can_fulfill:
+            action = "emergency"
+            action_desc = f"🚨 EMERGENCIA: {demand_info['critical_locations']} ubicaciones críticas y CEDIS no puede surtir. Pedir a origen INMEDIATAMENTE."
+            priority = 100
+        elif demand_info["critical_locations"] > 0:
+            action = "distribute"
+            action_desc = f"⚠️ DISTRIBUIR YA: {demand_info['critical_locations']} ubicaciones en estado crítico. Stock en CEDIS suficiente."
+            priority = 90
+        elif not can_fulfill and demand_info["locations_needing"] > 0:
+            action = "order_now"
+            action_desc = f"📦 PEDIR A ORIGEN: Déficit de {deficit:,} unidades para surtir {demand_info['locations_needing']} ubicaciones."
+            priority = 80
+        elif cedis_item.stock_status == "critical":
+            action = "order_now"
+            action_desc = f"📦 PEDIR A ORIGEN: Stock CEDIS crítico ({cedis_item.days_of_stock:.1f} días)."
+            priority = 75
+        elif cedis_item.stock_status == "low" or demand_info["locations_needing"] > 5:
+            action = "order_soon"
+            action_desc = f"📋 PROGRAMAR PEDIDO: Stock bajo en CEDIS o múltiples ubicaciones necesitan restock."
+            priority = 50
+        elif demand_info["locations_needing"] > 0:
+            action = "distribute"
+            action_desc = f"🚚 PLANIFICAR DISTRIBUCIÓN: {demand_info['locations_needing']} ubicaciones necesitan resurtido."
+            priority = 40
+        else:
+            action = "none"
+            action_desc = "✅ Cadena de suministro saludable. No se requiere acción inmediata."
+            priority = 10
+        
+        plans.append(SupplyChainPlan(
+            sku=sku,
+            product_name=product["name"],
+            brand=product.get("brand", "Sin marca"),
+            cedis_current_stock=cedis_item.current_stock,
+            cedis_minimum_stock=cedis_item.minimum_stock,
+            cedis_days_of_stock=cedis_item.days_of_stock,
+            total_end_client_demand=total_demand,
+            end_clients_needing_restock=demand_info["locations_needing"],
+            critical_end_client_locations=demand_info["critical_locations"],
+            can_fulfill_from_cedis=can_fulfill,
+            cedis_deficit=deficit,
+            earliest_end_client_stockout=earliest_stockout,
+            distribution_ship_by_date=ship_by_date,
+            cedis_reorder_date=cedis_reorder_date,
+            expected_inbound_date=expected_inbound,
+            distribution_time_days=avg_distribution_time,
+            inbound_lead_time_days=inbound_lead_time,
+            action_required=action,
+            action_description=action_desc,
+            suggested_origin=route["origin"],
+            route_details={
+                "origin": route["origin"],
+                "destination": route["destination"],
+                "transport_mode": route["mode"],
+                "transit_days": route["transit_days"],
+                "total_lead_time": inbound_lead_time,
+                "cost": route["cost"]
+            },
+            priority_score=priority
+        ))
+    
+    # Ordenar por prioridad
+    plans.sort(key=lambda x: x.priority_score, reverse=True)
+    return plans
+
+def generate_distribution_orders():
+    """Genera órdenes de distribución pendientes desde CEDIS a clientes finales"""
+    orders = []
+    
+    cedis_inventory = generate_cedis_inventory()
+    cedis_by_sku = {item.sku: item for item in cedis_inventory}
+    
+    all_end_client_inventory = generate_end_client_inventory()
+    
+    for item in all_end_client_inventory:
+        if not item.needs_restock:
+            continue
+        
+        cedis_item = cedis_by_sku.get(item.sku)
+        if not cedis_item or cedis_item.current_stock < item.suggested_quantity:
+            continue  # No hay stock en CEDIS para surtir
+        
+        # Determinar región y tiempo de distribución
+        region = "Centro"  # Default
+        for client in END_CLIENTS:
+            if client["name"] == item.client_name:
+                for r in client["regions"]:
+                    region = r
+                    break
+                break
+        
+        dist_time = get_distribution_time(region)
+        
+        # Calcular fechas
+        ship_by = datetime.strptime(item.suggested_restock_date, "%Y-%m-%d").date()
+        arrival = ship_by + timedelta(days=dist_time)
+        
+        # Prioridad
+        if item.days_of_stock <= 3:
+            priority = "critical"
+        elif item.days_of_stock <= 7:
+            priority = "high"
+        elif item.days_of_stock <= 14:
+            priority = "medium"
+        else:
+            priority = "low"
+        
+        product = next((p for p in PERNOD_RICARD_PRODUCTS if p["sku"] == item.sku), None)
+        
+        orders.append(DistributionOrder(
+            sku=item.sku,
+            product_name=item.product_name,
+            brand=item.brand,
+            client_name=item.client_name,
+            store_code=item.store_code,
+            store_name=item.store_name,
+            region=region,
+            quantity=item.suggested_quantity,
+            ship_by_date=ship_by.strftime("%Y-%m-%d"),
+            expected_arrival=arrival.strftime("%Y-%m-%d"),
+            distribution_time_days=dist_time,
+            priority=priority
+        ))
+    
+    # Ordenar por prioridad y fecha
+    priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    orders.sort(key=lambda x: (priority_order.get(x.priority, 4), x.ship_by_date))
+    
+    return orders
+
 def get_zone_for_category(category: str) -> str:
     """Get warehouse zone for a product category"""
     for zone, config in WAREHOUSE_ZONES.items():
