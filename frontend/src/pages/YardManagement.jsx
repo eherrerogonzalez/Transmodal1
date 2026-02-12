@@ -145,57 +145,57 @@ export default function YardManagement() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Box className="w-5 h-5 text-blue-400" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.total_occupied}</p>
-                <p className="text-xs text-slate-400">Total Contenedores</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Total Contenedores</p>
+                <p className="text-2xl font-bold text-slate-800">{stats?.total_occupied}</p>
+              </div>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Box className="w-5 h-5 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/20 rounded-lg">
-                <Package className="w-5 h-5 text-emerald-400" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.full_containers}</p>
-                <p className="text-xs text-slate-400">Llenos</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Llenos</p>
+                <p className="text-2xl font-bold text-slate-800">{stats?.full_containers}</p>
+              </div>
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <Package className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-slate-500/20 rounded-lg">
-                <Box className="w-5 h-5 text-slate-400" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.empty_containers}</p>
-                <p className="text-xs text-slate-400">Vacíos</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Vacíos</p>
+                <p className="text-2xl font-bold text-slate-800">{stats?.empty_containers}</p>
+              </div>
+              <div className="p-2 bg-slate-100 rounded-lg">
+                <Box className="w-5 h-5 text-slate-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/20 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
-              </div>
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-white">{stats?.utilization_percent}%</p>
-                <p className="text-xs text-slate-400">Utilización</p>
+                <p className="text-xs text-slate-500 uppercase tracking-wide">Utilización</p>
+                <p className="text-2xl font-bold text-slate-800">{stats?.utilization_percent}%</p>
+              </div>
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
               </div>
             </div>
           </CardContent>
