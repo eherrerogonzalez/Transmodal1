@@ -217,7 +217,7 @@ export default function YardManagement() {
               {/* Column headers */}
               <div className="flex mb-2 pl-8">
                 {Array.from({ length: layout?.columns || 0 }, (_, i) => (
-                  <div key={i} className="w-10 text-center text-xs text-slate-400 font-mono">
+                  <div key={i} className="w-10 text-center text-xs text-slate-500 font-mono font-medium">
                     {String.fromCharCode(65 + i)}
                   </div>
                 ))}
@@ -227,7 +227,7 @@ export default function YardManagement() {
               <div className="space-y-1">
                 {Array.from({ length: layout?.rows || 0 }, (_, rowIdx) => (
                   <div key={rowIdx} className="flex items-center">
-                    <div className="w-8 text-xs text-slate-400 font-mono">{rowIdx + 1}</div>
+                    <div className="w-8 text-xs text-slate-500 font-mono font-medium">{rowIdx + 1}</div>
                     <div className="flex gap-1">
                       {layout?.cells
                         .filter(cell => cell.row === rowIdx + 1)
