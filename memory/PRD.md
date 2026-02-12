@@ -8,6 +8,7 @@ Aplicación web para clientes de Transmodal para gestión de cadena de suministr
 - Órdenes con múltiples contenedores, cada contenedor con múltiples productos
 - Extracción automática de información de documentos con AI
 - **Chatbot inteligente con acceso a datos en tiempo real, gráficos y reportes**
+- **Gestión de Patio con optimización de movimientos**
 
 ## Architecture
 - **Frontend**: React 19 + Tailwind CSS + Shadcn UI + Recharts
@@ -57,13 +58,21 @@ El chatbot ahora puede:
 - Walmart, Costco, HEB, Soriana, La Comer, Chedraui
 - Stock por tienda, velocidad de venta, alertas de desabasto
 
+### 6. Gestión de Patio (`/yard`) - NUEVO ✅ (Feb 2026)
+- **Layout Visual**: Grid del patio con celdas de colores (verde <60%, amarillo 60-80%, rojo >80%)
+- **KPIs**: Total contenedores, llenos, vacíos, % utilización
+- **Búsqueda**: Localizar contenedores por número
+- **Algoritmo de Optimización**: Calcula plan de recuperación minimizando movimientos
+  - Considera fechas de salida de contenedores encima
+  - Muestra secuencia de movimientos paso a paso
+  - Estima tiempo total de operación
+- **Salidas Programadas**: Vista de contenedores con salida hoy y esta semana
+- **Estadísticas**: Por cliente y por tamaño de contenedor
+
 ## API Endpoints
 
 ### AI Chatbot (con datos reales)
 - `POST /api/ai/chat` - Chatbot con acceso a datos del sistema
-  - Detecta intención del usuario
-  - Ejecuta queries apropiadas
-  - Retorna texto + datos estructurados (tablas/gráficos)
 - `POST /api/ai/extract-document` - Extraer info de BL/facturas
 
 ### Orders & Confirmations
@@ -76,6 +85,14 @@ El chatbot ahora puede:
 - `GET /api/planning/supply-chain` - Plan integrado
 - `GET /api/inventory/end-clients/{name}` - Inventario por cliente
 
+### Yard Management (NUEVO)
+- `GET /api/yard/layout` - Layout completo del patio
+- `GET /api/yard/stats` - Estadísticas (por cliente, tamaño, salidas)
+- `GET /api/yard/search/{container_number}` - Buscar contenedor
+- `POST /api/yard/optimize-retrieval/{container_number}` - Plan óptimo de recuperación
+- `GET /api/yard/containers/by-departure` - Ordenados por fecha de salida
+- `POST /api/yard/reset` - Regenerar datos mock
+
 ## Frontend Pages
 - `/dashboard` - Dashboard con KPIs
 - `/confirmations` - Confirmación de órdenes
@@ -85,6 +102,7 @@ El chatbot ahora puede:
 - `/map` - Mapa de tracking
 - `/inventory` - Cadena de suministro
 - `/planning` - Planeación
+- `/yard` - **Gestión de Patio** (NUEVO)
 - `/additionals` - Adicionales
 - `/account` - Estado de cuenta
 
@@ -92,6 +110,7 @@ El chatbot ahora puede:
 - **DATOS MOCK**: Generados en Python con random
 - **AI**: Claude vía Emergent Integrations (EMERGENT_LLM_KEY)
 - Chatbot tiene contexto de datos del sistema en cada request
+- Yard data usa cache global (_yard_cache) que se regenera con reset
 
 ## Prioritized Backlog
 
@@ -99,14 +118,19 @@ El chatbot ahora puede:
 - Sistema de confirmación de órdenes
 - Órdenes con múltiples contenedores
 - Extracción AI de documentos
-- **Chatbot con datos reales, gráficos y reportes**
+- Chatbot con datos reales, gráficos y reportes
+- **Gestión de Patio con optimización de movimientos**
 
 ### P1 (High Priority) - Pendiente
+- Validar formulario de creación de órdenes (Orders.jsx reescrito pero sin probar)
+- Completar extracción AI de documentos en CreateOrder.jsx (frontend incompleto)
+- Fix bug de navegación del Sidebar (issue recurrente)
+- Probar renderizado de gráficos en Chatbot
+
+### P2 (Medium Priority)
 - Integración real con ERP vía API
 - Google Maps para tracking real
 - Persistencia de datos en MongoDB
-
-### P2 (Medium Priority)
 - Notificaciones push
 - Exportación PDF
 - Multi-idioma
