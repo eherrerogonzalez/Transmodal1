@@ -388,39 +388,39 @@ export default function YardManagement() {
 
           {/* Retrieval Plan */}
           {retrievalPlan && retrievalPlan.found && (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-white border-slate-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-blue-400" />
+                <CardTitle className="text-slate-800 text-base flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-blue-500" />
                   Plan de Recuperación
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/30">
-                  <p className="text-sm text-blue-300">{retrievalPlan.message}</p>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-sm text-blue-700">{retrievalPlan.message}</p>
                 </div>
                 
                 {retrievalPlan.retrieval_plan && (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Movimientos necesarios:</span>
-                      <span className="text-white font-bold">{retrievalPlan.retrieval_plan.total_moves}</span>
+                      <span className="text-slate-500">Movimientos necesarios:</span>
+                      <span className="text-slate-800 font-bold">{retrievalPlan.retrieval_plan.total_moves}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Tiempo estimado:</span>
-                      <span className="text-white font-bold">{retrievalPlan.retrieval_plan.estimated_time_minutes} min</span>
+                      <span className="text-slate-500">Tiempo estimado:</span>
+                      <span className="text-slate-800 font-bold">{retrievalPlan.retrieval_plan.estimated_time_minutes} min</span>
                     </div>
 
                     {retrievalPlan.retrieval_plan.moves_required.length > 0 && (
                       <div className="space-y-2 mt-3">
-                        <p className="text-sm text-slate-400 font-medium">Secuencia de movimientos:</p>
+                        <p className="text-sm text-slate-600 font-medium">Secuencia de movimientos:</p>
                         {retrievalPlan.retrieval_plan.moves_required.map((move, i) => (
-                          <div key={i} className="p-2 bg-slate-900/50 rounded flex items-center gap-2 text-sm">
+                          <div key={i} className="p-2 bg-slate-50 border border-slate-100 rounded flex items-center gap-2 text-sm">
                             <span className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-xs text-white">{i + 1}</span>
-                            <span className="font-mono text-slate-300">{move.container_number.slice(-7)}</span>
-                            <span className="text-slate-500">{move.from_position}</span>
-                            <ArrowRight className="w-3 h-3 text-slate-500" />
-                            <span className="text-emerald-400">{move.to_position}</span>
+                            <span className="font-mono text-slate-700">{move.container_number.slice(-7)}</span>
+                            <span className="text-slate-400">{move.from_position}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <span className="text-emerald-600 font-medium">{move.to_position}</span>
                           </div>
                         ))}
                       </div>
@@ -434,11 +434,11 @@ export default function YardManagement() {
       </div>
 
       {/* Departures Section */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-white border-slate-200 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-amber-400" />
+            <CardTitle className="text-slate-800 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-amber-500" />
               Salidas Programadas
             </CardTitle>
             <div className="flex gap-2">
@@ -446,7 +446,7 @@ export default function YardManagement() {
                 variant={departuresView === 'today' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setDeparturesView('today')}
-                className={departuresView === 'today' ? 'bg-blue-600' : 'text-slate-400'}
+                className={departuresView === 'today' ? 'bg-blue-600' : 'text-slate-500 hover:text-slate-700'}
               >
                 Hoy ({departures.today.length})
               </Button>
@@ -454,7 +454,7 @@ export default function YardManagement() {
                 variant={departuresView === 'week' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setDeparturesView('week')}
-                className={departuresView === 'week' ? 'bg-blue-600' : 'text-slate-400'}
+                className={departuresView === 'week' ? 'bg-blue-600' : 'text-slate-500 hover:text-slate-700'}
               >
                 Esta Semana ({departures.week.length})
               </Button>
