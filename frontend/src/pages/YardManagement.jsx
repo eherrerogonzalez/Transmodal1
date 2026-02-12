@@ -129,13 +129,13 @@ export default function YardManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Gestión de Patio</h1>
-          <p className="text-slate-400">Visualización y optimización de contenedores</p>
+          <h1 className="text-2xl font-bold text-slate-800">Gestión de Patio</h1>
+          <p className="text-slate-500">Visualización y optimización de contenedores</p>
         </div>
         <Button 
           onClick={handleResetYard} 
           variant="outline" 
-          className="border-slate-600"
+          className="border-slate-300 text-slate-600 hover:bg-slate-50"
           data-testid="reset-yard-btn"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
