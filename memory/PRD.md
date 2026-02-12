@@ -112,6 +112,69 @@ El chatbot ahora puede:
 - Chatbot tiene contexto de datos del sistema en cada request
 - Yard data usa cache global (_yard_cache) que se regenera con reset
 
+## 7. Portal de Operaciones (`/ops/*`) - NUEVO ✅ (Feb 2026)
+Portal separado para ejecutivos de operaciones con:
+
+### Login Separado (`/ops/login`)
+- Credenciales: operaciones / ops123
+- Tipos de usuario diferenciados
+
+### Dashboard de Rentabilidad (`/ops/dashboard`)
+- **KPIs**: Ingresos totales, Costos totales, Utilidad, Margen %
+- **Gráfico de Tendencia Mensual**: Ingresos, Costos y Utilidad por mes
+- **Rentabilidad por Cliente**: Gráfico de barras horizontal
+- **Top 5 Más/Menos Rentables**: Contenedores con mejor y peor margen
+- **Tabla de Rentabilidad por Ruta**: Con totales y márgenes
+
+### Vista de Contenedores (`/ops/containers`)
+- Tabla con todos los contenedores y su rentabilidad
+- Filtro por número de contenedor o cliente
+- **Modal de Detalle de Rentabilidad**:
+  - Resumen: Ingresos, Costos, Utilidad, Margen %
+  - Info: Cliente, Origen, Destino, Estado
+  - **Desglose de Costos**: Flete marítimo/ferroviario, maniobras, arrastre, aduanales, estadías, demoras
+  - **Desglose de Ingresos**: Flete cobrado, servicios adicionales
+
+### Módulo de Pricing (`/ops/pricing`)
+- **Tab Rutas**: Filtros por origen, destino, modo, tamaño
+  - Tabla con: Modo, Origen, Destino, Contenedor, Costo, Precio Sugerido, Margen, Días, Vigencia
+- **Tab Servicios Adicionales**: Cards con código, nombre, descripción, costo y precio
+
+### Módulo de Cotizaciones (`/ops/quotes`)
+- **Lista de cotizaciones**: Número, Cliente, Estado, Total, Margen, Válida hasta
+- **Nueva Cotización**:
+  - Datos del cliente (nombre, email, teléfono, cliente nuevo)
+  - **Selector de Rutas**: Modal con todas las rutas disponibles
+  - **Selector de Servicios**: Modal con servicios adicionales
+  - Cantidades y precios editables
+  - Cálculo automático: Subtotal, IVA 16%, Total, Margen
+  - Notas adicionales
+- **Exportación a PDF** (via print)
+
+## API Endpoints - Portal de Operaciones (NUEVO)
+
+### Autenticación
+- `POST /api/ops/auth/login` - Login para operaciones
+
+### Dashboard
+- `GET /api/ops/dashboard/profitability` - Dashboard de rentabilidad
+
+### Contenedores
+- `GET /api/ops/containers` - Lista de contenedores con rentabilidad
+- `GET /api/ops/containers/{id}/profitability` - Detalle de rentabilidad
+
+### Pricing
+- `GET /api/ops/pricing/routes` - Rutas con precios (filtrable)
+- `GET /api/ops/pricing/services` - Servicios adicionales
+- `GET /api/ops/pricing/origins` - Orígenes disponibles
+- `GET /api/ops/pricing/destinations` - Destinos disponibles
+
+### Cotizaciones
+- `POST /api/ops/quotes` - Crear cotización
+- `GET /api/ops/quotes` - Lista de cotizaciones
+- `GET /api/ops/quotes/{id}` - Detalle de cotización
+- `PUT /api/ops/quotes/{id}/status` - Actualizar estado
+
 ## Prioritized Backlog
 
 ### P0 (Critical) - DONE ✅
