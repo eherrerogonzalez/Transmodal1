@@ -463,13 +463,13 @@ export default function YardManagement() {
         </CardHeader>
         <CardContent>
           {(departuresView === 'today' ? departures.today : departures.week).length === 0 ? (
-            <p className="text-slate-400 text-center py-4">No hay salidas programadas</p>
+            <p className="text-slate-500 text-center py-4">No hay salidas programadas</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {(departuresView === 'today' ? departures.today : departures.week).map((dep, i) => (
                 <div 
                   key={i} 
-                  className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-blue-500/50 cursor-pointer transition-colors"
+                  className="p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
                   onClick={() => {
                     setSearchQuery(dep.container);
                     handleSearch();
@@ -477,19 +477,19 @@ export default function YardManagement() {
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-mono font-bold text-white">{dep.container}</p>
-                      <p className="text-sm text-slate-400">{dep.client}</p>
+                      <p className="font-mono font-bold text-slate-800">{dep.container}</p>
+                      <p className="text-sm text-slate-500">{dep.client}</p>
                     </div>
-                    <span className="text-xs font-mono bg-slate-700 px-2 py-1 rounded text-slate-300">{dep.position}</span>
+                    <span className="text-xs font-mono bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">{dep.position}</span>
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-sm">
-                    <Truck className="w-3 h-3 text-slate-500" />
-                    <span className="text-slate-400">{dep.destination}</span>
+                    <Truck className="w-3 h-3 text-slate-400" />
+                    <span className="text-slate-600">{dep.destination}</span>
                   </div>
                   {dep.expected_date && (
                     <div className="mt-1 flex items-center gap-2 text-sm">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      <span className="text-slate-400">{dep.expected_date}</span>
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span className="text-slate-600">{dep.expected_date}</span>
                     </div>
                   )}
                 </div>
@@ -501,9 +501,9 @@ export default function YardManagement() {
 
       {/* Stats by Client */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-white text-base">Por Cliente</CardTitle>
+            <CardTitle className="text-slate-800 text-base">Por Cliente</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -512,15 +512,15 @@ export default function YardManagement() {
                 .sort((a, b) => b[1] - a[1])
                 .map(([client, count]) => (
                   <div key={client} className="flex items-center justify-between">
-                    <span className="text-slate-300">{client}</span>
+                    <span className="text-slate-600">{client}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-blue-500 rounded-full"
                           style={{ width: `${(count / stats.full_containers) * 100}%` }}
                         />
                       </div>
-                      <span className="text-white font-bold w-8 text-right">{count}</span>
+                      <span className="text-slate-800 font-bold w-8 text-right">{count}</span>
                     </div>
                   </div>
                 ))}
@@ -528,9 +528,9 @@ export default function YardManagement() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white border-slate-200 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-white text-base">Por Tamaño</CardTitle>
+            <CardTitle className="text-slate-800 text-base">Por Tamaño</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
