@@ -4503,6 +4503,460 @@ async def reset_operations_data(user: dict = Depends(verify_token)):
     reset_operations_cache()
     return {"success": True, "message": "Datos regenerados"}
 
+# ==================== SUPPLIERS & CLIENTS MODULE ====================
+
+class SupplierDocument(BaseModel):
+    """Documento de proveedor"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    doc_type: str  # acta_constitutiva, ine_representante, csf, contrato, tarifario, otro
+    file_name: str
+    file_url: Optional[str] = None
+    uploaded_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    status: str = "pending"  # pending, approved, rejected
+    notes: Optional[str] = None
+
+class SupplierAudit(BaseModel):
+    """Auditoría de proveedor"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    audit_date: str
+    auditor_name: str
+    audit_type: str  # inicial, seguimiento, recertificacion
+    score: int  # 0-100
+    status: str  # approved, conditional, rejected
+    findings: List[str] = []
+    recommendations: List[str] = []
+    next_audit_date: Optional[str] = None
+    notes: Optional[str] = None
+
+class Supplier(BaseModel):
+    """Proveedor completo"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Info básica
+    company_name: str
+    trade_name: Optional[str] = None
+    rfc: str
+    supplier_type: str  # naviera, ferroviaria, transportista, agente_aduanal, almacen, otro
+    # Contacto
+    contact_name: str
+    contact_email: str
+    contact_phone: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: str = "México"
+    # Comercial
+    credit_days: int = 0
+    credit_limit: float = 0.0
+    currency: str = "USD"
+    payment_method: str = "transferencia"  # transferencia, cheque, efectivo
+    bank_name: Optional[str] = None
+    bank_account: Optional[str] = None
+    clabe: Optional[str] = None
+    # Documentos y auditorías
+    documents: List[SupplierDocument] = []
+    audits: List[SupplierAudit] = []
+    # Contrato
+    contract_status: str = "pending"  # pending, sent, signed, expired
+    contract_start: Optional[str] = None
+    contract_end: Optional[str] = None
+    contract_signed_at: Optional[str] = None
+    # Estado
+    status: str = "active"  # active, inactive, blocked, pending_approval
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+    notes: Optional[str] = None
+
+class ClientDocument(BaseModel):
+    """Documento de cliente"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    doc_type: str
+    file_name: str
+    file_url: Optional[str] = None
+    uploaded_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    status: str = "pending"
+    notes: Optional[str] = None
+
+class Client(BaseModel):
+    """Cliente completo"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    # Info básica
+    company_name: str
+    trade_name: Optional[str] = None
+    rfc: str
+    industry: str  # bebidas, alimentos, automotriz, retail, farmaceutica, otro
+    # Contacto
+    contact_name: str
+    contact_email: str
+    contact_phone: str
+    address: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    country: str = "México"
+    # Comercial
+    credit_days: int = 0
+    credit_limit: float = 0.0
+    currency: str = "USD"
+    payment_method: str = "transferencia"
+    # Documentos
+    documents: List[ClientDocument] = []
+    # Contrato
+    contract_status: str = "pending"
+    contract_start: Optional[str] = None
+    contract_end: Optional[str] = None
+    contract_signed_at: Optional[str] = None
+    # Estadísticas
+    total_shipments: int = 0
+    total_revenue: float = 0.0
+    avg_margin: float = 0.0
+    # Estado
+    status: str = "active"
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+    notes: Optional[str] = None
+
+# Mock data storage
+_suppliers_cache = []
+_clients_cache = []
+
+def generate_mock_suppliers():
+    """Genera proveedores mock"""
+    suppliers_data = [
+        {"name": "MSC Mediterranean Shipping", "type": "naviera", "rfc": "MSC850101ABC"},
+        {"name": "Maersk Line", "type": "naviera", "rfc": "MAE900215DEF"},
+        {"name": "Ferromex", "type": "ferroviaria", "rfc": "FER980512GHI"},
+        {"name": "KCSM", "type": "ferroviaria", "rfc": "KCS010823JKL"},
+        {"name": "Transportes del Norte", "type": "transportista", "rfc": "TDN150607MNO"},
+        {"name": "Agencia Aduanal López", "type": "agente_aduanal", "rfc": "AAL880930PQR"},
+        {"name": "Almacenes Logísticos SA", "type": "almacen", "rfc": "ALS920115STU"},
+        {"name": "CMA CGM", "type": "naviera", "rfc": "CMA870420VWX"},
+    ]
+    
+    suppliers = []
+    for data in suppliers_data:
+        docs = [
+            SupplierDocument(doc_type="acta_constitutiva", file_name="acta_constitutiva.pdf", status="approved"),
+            SupplierDocument(doc_type="csf", file_name="csf_2024.pdf", status="approved"),
+        ]
+        if random.random() > 0.3:
+            docs.append(SupplierDocument(doc_type="ine_representante", file_name="ine_rep_legal.pdf", status="approved"))
+        if random.random() > 0.5:
+            docs.append(SupplierDocument(doc_type="tarifario", file_name="tarifario_2024.xlsx", status="approved"))
+        
+        audits = []
+        if random.random() > 0.4:
+            audits.append(SupplierAudit(
+                audit_date=(datetime.now(timezone.utc) - timedelta(days=random.randint(30, 180))).strftime("%Y-%m-%d"),
+                auditor_name="Auditor Interno",
+                audit_type="inicial",
+                score=random.randint(70, 98),
+                status="approved" if random.random() > 0.2 else "conditional",
+                findings=["Documentación completa", "Procesos estandarizados"],
+                next_audit_date=(datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%d")
+            ))
+        
+        suppliers.append(Supplier(
+            company_name=data["name"],
+            trade_name=data["name"],
+            rfc=data["rfc"],
+            supplier_type=data["type"],
+            contact_name=f"Contacto {data['name'].split()[0]}",
+            contact_email=f"ventas@{data['name'].lower().replace(' ', '')[:10]}.com",
+            contact_phone=f"+52 55 {random.randint(1000,9999)} {random.randint(1000,9999)}",
+            city=random.choice(["CDMX", "Guadalajara", "Monterrey", "Manzanillo"]),
+            state=random.choice(["CDMX", "Jalisco", "Nuevo León", "Colima"]),
+            credit_days=random.choice([0, 15, 30, 45, 60]),
+            credit_limit=random.randint(50000, 500000),
+            documents=docs,
+            audits=audits,
+            contract_status=random.choice(["signed", "signed", "pending", "sent"]),
+            contract_start=(datetime.now(timezone.utc) - timedelta(days=random.randint(100, 500))).strftime("%Y-%m-%d") if random.random() > 0.3 else None,
+            contract_end=(datetime.now(timezone.utc) + timedelta(days=random.randint(100, 500))).strftime("%Y-%m-%d") if random.random() > 0.3 else None,
+            status="active"
+        ))
+    return suppliers
+
+def generate_mock_clients():
+    """Genera clientes mock"""
+    clients_data = [
+        {"name": "Pernod Ricard México", "industry": "bebidas", "rfc": "PRM850101ABC"},
+        {"name": "Diageo México", "industry": "bebidas", "rfc": "DIA900215DEF"},
+        {"name": "Beam Suntory", "industry": "bebidas", "rfc": "BSU980512GHI"},
+        {"name": "Coca-Cola FEMSA", "industry": "bebidas", "rfc": "CCF010823JKL"},
+        {"name": "Nestlé México", "industry": "alimentos", "rfc": "NES150607MNO"},
+        {"name": "Walmart México", "industry": "retail", "rfc": "WMX880930PQR"},
+        {"name": "Liverpool", "industry": "retail", "rfc": "LIV920115STU"},
+        {"name": "Grupo Modelo", "industry": "bebidas", "rfc": "GMO870420VWX"},
+    ]
+    
+    clients = []
+    for data in clients_data:
+        docs = [
+            ClientDocument(doc_type="acta_constitutiva", file_name="acta_constitutiva.pdf", status="approved"),
+            ClientDocument(doc_type="csf", file_name="csf_2024.pdf", status="approved"),
+        ]
+        
+        clients.append(Client(
+            company_name=data["name"],
+            trade_name=data["name"],
+            rfc=data["rfc"],
+            industry=data["industry"],
+            contact_name=f"Contacto {data['name'].split()[0]}",
+            contact_email=f"logistica@{data['name'].lower().replace(' ', '')[:10]}.com",
+            contact_phone=f"+52 55 {random.randint(1000,9999)} {random.randint(1000,9999)}",
+            city=random.choice(["CDMX", "Guadalajara", "Monterrey"]),
+            state=random.choice(["CDMX", "Jalisco", "Nuevo León"]),
+            credit_days=random.choice([30, 45, 60, 90]),
+            credit_limit=random.randint(100000, 1000000),
+            documents=docs,
+            contract_status=random.choice(["signed", "signed", "signed", "pending"]),
+            contract_start=(datetime.now(timezone.utc) - timedelta(days=random.randint(100, 500))).strftime("%Y-%m-%d"),
+            contract_end=(datetime.now(timezone.utc) + timedelta(days=random.randint(100, 500))).strftime("%Y-%m-%d"),
+            total_shipments=random.randint(10, 200),
+            total_revenue=random.randint(50000, 500000),
+            avg_margin=random.uniform(15, 30),
+            status="active"
+        ))
+    return clients
+
+def get_suppliers():
+    global _suppliers_cache
+    if not _suppliers_cache:
+        _suppliers_cache = generate_mock_suppliers()
+    return _suppliers_cache
+
+def get_clients():
+    global _clients_cache
+    if not _clients_cache:
+        _clients_cache = generate_mock_clients()
+    return _clients_cache
+
+# ==================== SUPPLIERS ENDPOINTS ====================
+
+@api_router.get("/ops/suppliers")
+async def list_suppliers(status: str = None, supplier_type: str = None, user: dict = Depends(verify_token)):
+    """Listar proveedores"""
+    suppliers = get_suppliers()
+    if status:
+        suppliers = [s for s in suppliers if s.status == status]
+    if supplier_type:
+        suppliers = [s for s in suppliers if s.supplier_type == supplier_type]
+    return {"total": len(suppliers), "suppliers": suppliers}
+
+@api_router.get("/ops/suppliers/{supplier_id}")
+async def get_supplier(supplier_id: str, user: dict = Depends(verify_token)):
+    """Obtener detalle de proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    return supplier
+
+@api_router.post("/ops/suppliers")
+async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token)):
+    """Crear nuevo proveedor"""
+    global _suppliers_cache
+    
+    new_supplier = Supplier(
+        company_name=supplier_data.get("company_name"),
+        trade_name=supplier_data.get("trade_name"),
+        rfc=supplier_data.get("rfc"),
+        supplier_type=supplier_data.get("supplier_type", "otro"),
+        contact_name=supplier_data.get("contact_name"),
+        contact_email=supplier_data.get("contact_email"),
+        contact_phone=supplier_data.get("contact_phone"),
+        address=supplier_data.get("address"),
+        city=supplier_data.get("city"),
+        state=supplier_data.get("state"),
+        credit_days=supplier_data.get("credit_days", 0),
+        credit_limit=supplier_data.get("credit_limit", 0),
+        payment_method=supplier_data.get("payment_method", "transferencia"),
+        bank_name=supplier_data.get("bank_name"),
+        bank_account=supplier_data.get("bank_account"),
+        clabe=supplier_data.get("clabe"),
+        notes=supplier_data.get("notes"),
+        status="pending_approval"
+    )
+    
+    _suppliers_cache = get_suppliers()
+    _suppliers_cache.insert(0, new_supplier)
+    
+    return {"success": True, "supplier": new_supplier}
+
+@api_router.put("/ops/suppliers/{supplier_id}")
+async def update_supplier(supplier_id: str, supplier_data: dict, user: dict = Depends(verify_token)):
+    """Actualizar proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    for key, value in supplier_data.items():
+        if hasattr(supplier, key) and value is not None:
+            setattr(supplier, key, value)
+    supplier.updated_at = datetime.now(timezone.utc).isoformat()
+    
+    return {"success": True, "supplier": supplier}
+
+@api_router.post("/ops/suppliers/{supplier_id}/documents")
+async def add_supplier_document(supplier_id: str, doc_data: dict, user: dict = Depends(verify_token)):
+    """Agregar documento a proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    new_doc = SupplierDocument(
+        doc_type=doc_data.get("doc_type"),
+        file_name=doc_data.get("file_name"),
+        file_url=doc_data.get("file_url"),
+        status="pending",
+        notes=doc_data.get("notes")
+    )
+    supplier.documents.append(new_doc)
+    
+    return {"success": True, "document": new_doc}
+
+@api_router.post("/ops/suppliers/{supplier_id}/audits")
+async def add_supplier_audit(supplier_id: str, audit_data: dict, user: dict = Depends(verify_token)):
+    """Agregar auditoría a proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    new_audit = SupplierAudit(
+        audit_date=audit_data.get("audit_date"),
+        auditor_name=audit_data.get("auditor_name"),
+        audit_type=audit_data.get("audit_type", "seguimiento"),
+        score=audit_data.get("score", 0),
+        status=audit_data.get("status", "pending"),
+        findings=audit_data.get("findings", []),
+        recommendations=audit_data.get("recommendations", []),
+        next_audit_date=audit_data.get("next_audit_date"),
+        notes=audit_data.get("notes")
+    )
+    supplier.audits.append(new_audit)
+    
+    return {"success": True, "audit": new_audit}
+
+@api_router.post("/ops/suppliers/{supplier_id}/sign-contract")
+async def sign_supplier_contract(supplier_id: str, user: dict = Depends(verify_token)):
+    """Firmar contrato con proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    supplier.contract_status = "signed"
+    supplier.contract_signed_at = datetime.now(timezone.utc).isoformat()
+    if not supplier.contract_start:
+        supplier.contract_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not supplier.contract_end:
+        supplier.contract_end = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%d")
+    supplier.status = "active"
+    
+    return {"success": True, "supplier": supplier}
+
+# ==================== CLIENTS ENDPOINTS ====================
+
+@api_router.get("/ops/clients")
+async def list_clients(status: str = None, industry: str = None, user: dict = Depends(verify_token)):
+    """Listar clientes"""
+    clients = get_clients()
+    if status:
+        clients = [c for c in clients if c.status == status]
+    if industry:
+        clients = [c for c in clients if c.industry == industry]
+    return {"total": len(clients), "clients": clients}
+
+@api_router.get("/ops/clients/{client_id}")
+async def get_client(client_id: str, user: dict = Depends(verify_token)):
+    """Obtener detalle de cliente"""
+    clients = get_clients()
+    client = next((c for c in clients if c.id == client_id), None)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    return client
+
+@api_router.post("/ops/clients")
+async def create_client(client_data: dict, user: dict = Depends(verify_token)):
+    """Crear nuevo cliente"""
+    global _clients_cache
+    
+    new_client = Client(
+        company_name=client_data.get("company_name"),
+        trade_name=client_data.get("trade_name"),
+        rfc=client_data.get("rfc"),
+        industry=client_data.get("industry", "otro"),
+        contact_name=client_data.get("contact_name"),
+        contact_email=client_data.get("contact_email"),
+        contact_phone=client_data.get("contact_phone"),
+        address=client_data.get("address"),
+        city=client_data.get("city"),
+        state=client_data.get("state"),
+        credit_days=client_data.get("credit_days", 0),
+        credit_limit=client_data.get("credit_limit", 0),
+        payment_method=client_data.get("payment_method", "transferencia"),
+        notes=client_data.get("notes"),
+        status="active"
+    )
+    
+    _clients_cache = get_clients()
+    _clients_cache.insert(0, new_client)
+    
+    return {"success": True, "client": new_client}
+
+@api_router.put("/ops/clients/{client_id}")
+async def update_client(client_id: str, client_data: dict, user: dict = Depends(verify_token)):
+    """Actualizar cliente"""
+    clients = get_clients()
+    client = next((c for c in clients if c.id == client_id), None)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    for key, value in client_data.items():
+        if hasattr(client, key) and value is not None:
+            setattr(client, key, value)
+    client.updated_at = datetime.now(timezone.utc).isoformat()
+    
+    return {"success": True, "client": client}
+
+@api_router.post("/ops/clients/{client_id}/documents")
+async def add_client_document(client_id: str, doc_data: dict, user: dict = Depends(verify_token)):
+    """Agregar documento a cliente"""
+    clients = get_clients()
+    client = next((c for c in clients if c.id == client_id), None)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    new_doc = ClientDocument(
+        doc_type=doc_data.get("doc_type"),
+        file_name=doc_data.get("file_name"),
+        file_url=doc_data.get("file_url"),
+        status="pending",
+        notes=doc_data.get("notes")
+    )
+    client.documents.append(new_doc)
+    
+    return {"success": True, "document": new_doc}
+
+@api_router.post("/ops/clients/{client_id}/sign-contract")
+async def sign_client_contract(client_id: str, user: dict = Depends(verify_token)):
+    """Firmar contrato con cliente"""
+    clients = get_clients()
+    client = next((c for c in clients if c.id == client_id), None)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    
+    client.contract_status = "signed"
+    client.contract_signed_at = datetime.now(timezone.utc).isoformat()
+    if not client.contract_start:
+        client.contract_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not client.contract_end:
+        client.contract_end = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%d")
+    
+    return {"success": True, "client": client}
+
 # Include the router in the main app
 # ==================== YARD MANAGEMENT MODELS ====================
 
