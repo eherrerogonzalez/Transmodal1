@@ -10,7 +10,9 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Building2,
+  Users
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 
@@ -19,6 +21,8 @@ const navItems = [
   { path: '/ops/containers', icon: Package, label: 'Contenedores' },
   { path: '/ops/pricing', icon: Calculator, label: 'Pricing' },
   { path: '/ops/quotes', icon: FileText, label: 'Cotizaciones' },
+  { path: '/ops/suppliers', icon: Building2, label: 'Proveedores' },
+  { path: '/ops/clients', icon: Users, label: 'Clientes' },
 ];
 
 export default function OpsLayout() {
