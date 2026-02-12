@@ -11,7 +11,11 @@ const api = axios.create({
 
 // Add token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('transmodal_token');
+  // Check for operations token first, then client token
+  const opsToken = localStorage.getItem('ops_token');
+  const clientToken = localStorage.getItem('transmodal_token');
+  const token = opsToken || clientToken;
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -23,8 +27,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('transmodal_token');
-      window.location.href = '/login';
+      // Check which portal we're on and redirect accordingly
+      const isOpsPortal = window.location.pathname.startsWith('/ops');
+      if (isOpsPortal) {
+        localStorage.removeItem('ops_token');
+        localStorage.removeItem('ops_user');
+        window.location.href = '/ops/login';
+      } else {
+        localStorage.removeItem('transmodal_token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
