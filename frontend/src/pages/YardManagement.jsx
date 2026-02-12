@@ -306,10 +306,10 @@ export default function YardManagement() {
         {/* Search and Details */}
         <div className="space-y-4">
           {/* Search */}
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-white text-base flex items-center gap-2">
-                <Search className="w-4 h-4 text-blue-400" />
+              <CardTitle className="text-slate-800 text-base flex items-center gap-2">
+                <Search className="w-4 h-4 text-blue-500" />
                 Buscar Contenedor
               </CardTitle>
             </CardHeader>
@@ -320,7 +320,7 @@ export default function YardManagement() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="bg-slate-900/50 border-slate-600 text-white"
+                  className="border-slate-200"
                   data-testid="search-container-input"
                 />
                 <Button 
@@ -336,38 +336,38 @@ export default function YardManagement() {
 
           {/* Selected Container Details */}
           {selectedContainer && (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-white border-slate-200 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-white text-base flex items-center gap-2">
-                  <Package className="w-4 h-4 text-emerald-400" />
+                <CardTitle className="text-slate-800 text-base flex items-center gap-2">
+                  <Package className="w-4 h-4 text-emerald-500" />
                   Contenedor Encontrado
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 bg-slate-900/50 rounded-lg">
-                  <p className="text-lg font-mono font-bold text-white">{selectedContainer.container.container_number}</p>
+                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <p className="text-lg font-mono font-bold text-slate-800">{selectedContainer.container.container_number}</p>
                   <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
                     <div>
-                      <span className="text-slate-400">Posición:</span>
-                      <span className="ml-2 text-white font-mono">{selectedContainer.position.full_position}</span>
+                      <span className="text-slate-500">Posición:</span>
+                      <span className="ml-2 text-slate-800 font-mono font-medium">{selectedContainer.position.full_position}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400">Tamaño:</span>
-                      <span className="ml-2 text-white">{selectedContainer.container.size}</span>
+                      <span className="text-slate-500">Tamaño:</span>
+                      <span className="ml-2 text-slate-800">{selectedContainer.container.size}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400">Estado:</span>
-                      <span className={`ml-2 ${selectedContainer.container.status === 'full' ? 'text-emerald-400' : 'text-slate-400'}`}>
+                      <span className="text-slate-500">Estado:</span>
+                      <span className={`ml-2 font-medium ${selectedContainer.container.status === 'full' ? 'text-emerald-600' : 'text-slate-500'}`}>
                         {selectedContainer.container.status === 'full' ? 'Lleno' : 'Vacío'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-400">Cliente:</span>
-                      <span className="ml-2 text-white">{selectedContainer.container.client_name}</span>
+                      <span className="text-slate-500">Cliente:</span>
+                      <span className="ml-2 text-slate-800">{selectedContainer.container.client_name}</span>
                     </div>
                   </div>
                   {selectedContainer.containers_above > 0 && (
-                    <div className="mt-2 p-2 bg-amber-500/20 rounded text-amber-300 text-sm">
+                    <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-amber-700 text-sm">
                       <AlertTriangle className="w-4 h-4 inline mr-2" />
                       {selectedContainer.containers_above} contenedor(es) encima
                     </div>
@@ -376,7 +376,7 @@ export default function YardManagement() {
                 
                 <Button 
                   onClick={() => handleOptimizeRetrieval(selectedContainer.container.container_number)}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                   data-testid="optimize-retrieval-btn"
                 >
                   <Truck className="w-4 h-4 mr-2" />
