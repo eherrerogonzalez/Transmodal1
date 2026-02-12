@@ -206,10 +206,10 @@ export default function YardManagement() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Yard Grid */}
         <div className="lg:col-span-2">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Box className="w-5 h-5 text-blue-400" />
+              <CardTitle className="text-slate-800 flex items-center gap-2">
+                <Box className="w-5 h-5 text-blue-500" />
                 Layout del Patio
               </CardTitle>
             </CardHeader>
