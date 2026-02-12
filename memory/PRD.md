@@ -138,7 +138,9 @@ Portal separado para ejecutivos de operaciones con:
 ### Módulo de Pricing (`/ops/pricing`)
 - **Tab Rutas**: Filtros por origen, destino, modo, tamaño
   - Tabla con: Modo, Origen, Destino, Contenedor, Costo, Precio Sugerido, Margen, Días, Vigencia
+  - **Formulario Nueva Ruta**: Origen, Destino, Modo transporte, Tamaño contenedor, Costo base, Precio sugerido, Días tránsito, Margen calculado automático, Notas
 - **Tab Servicios Adicionales**: Cards con código, nombre, descripción, costo y precio
+  - **Formulario Nuevo Servicio**: Código, Nombre, Unidad de cobro (por contenedor/día/tonelada/fijo), Descripción, Costo base, Precio sugerido, Margen calculado automático
 
 ### Módulo de Cotizaciones (`/ops/quotes`)
 - **Lista de cotizaciones**: Número, Cliente, Estado, Total, Margen, Válida hasta
