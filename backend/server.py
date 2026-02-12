@@ -3981,8 +3981,66 @@ def reset_operations_cache():
 
 # ==================== ROUTES PRICING DATA ====================
 
+# Lista de proveedores por tipo de transporte
+SUPPLIERS = {
+    "maritime": [
+        {"name": "MSC", "type": "naviera"},
+        {"name": "Maersk", "type": "naviera"},
+        {"name": "CMA CGM", "type": "naviera"},
+        {"name": "Hapag-Lloyd", "type": "naviera"},
+        {"name": "COSCO", "type": "naviera"},
+        {"name": "Evergreen", "type": "naviera"},
+    ],
+    "rail": [
+        {"name": "Ferromex", "type": "ferroviaria"},
+        {"name": "KCSM", "type": "ferroviaria"},
+        {"name": "BNSF", "type": "ferroviaria"},
+        {"name": "Union Pacific", "type": "ferroviaria"},
+    ],
+    "intermodal": [
+        {"name": "JB Hunt", "type": "intermodal"},
+        {"name": "Schneider", "type": "intermodal"},
+        {"name": "XPO Logistics", "type": "intermodal"},
+        {"name": "Hub Group", "type": "intermodal"},
+    ],
+    "truck": [
+        {"name": "Transportes del Norte", "type": "transportista"},
+        {"name": "Fletes Rápidos", "type": "transportista"},
+        {"name": "Logística Express", "type": "transportista"},
+        {"name": "Carga Segura", "type": "transportista"},
+    ]
+}
+
+def generate_supplier_quotes(transport_mode: str, base_cost: float, transit_days: int):
+    """Genera cotizaciones de proveedores para una ruta"""
+    suppliers = SUPPLIERS.get(transport_mode, SUPPLIERS["truck"])
+    num_suppliers = random.randint(2, min(5, len(suppliers)))
+    selected_suppliers = random.sample(suppliers, num_suppliers)
+    
+    quotes = []
+    for supplier in selected_suppliers:
+        # Variación de precio entre -15% y +20% del costo base
+        variation = random.uniform(-0.15, 0.20)
+        cost = base_cost * (1 + variation)
+        # Variación de días de tránsito
+        days_variation = random.randint(-3, 5)
+        supplier_days = max(5, transit_days + days_variation)
+        
+        quotes.append(SupplierQuote(
+            supplier_name=supplier["name"],
+            supplier_type=supplier["type"],
+            cost=round(cost, 2),
+            transit_days=supplier_days,
+            validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            validity_end=(datetime.now(timezone.utc) + timedelta(days=60)).strftime("%Y-%m-%d"),
+            contact_name=f"Contacto {supplier['name']}",
+            contact_email=f"ventas@{supplier['name'].lower().replace(' ', '')}.com"
+        ))
+    
+    return quotes
+
 def generate_route_prices():
-    """Genera precios de rutas"""
+    """Genera precios de rutas con proveedores"""
     routes = []
     
     origins = ["Shanghai", "Rotterdam", "Hamburg", "Los Angeles", "Singapore", "Miami", "Long Beach"]
@@ -3999,8 +4057,21 @@ def generate_route_prices():
             for mode_info in modes:
                 for size in sizes:
                     base_cost = random.uniform(1500, 4000)
+                    transit_days = random.randint(8, 35)
+                    
+                    # Generar cotizaciones de proveedores
+                    supplier_quotes = generate_supplier_quotes(mode_info["mode"], base_cost, transit_days)
+                    
+                    # Calcular estadísticas de costos
+                    costs = [q.cost for q in supplier_quotes]
+                    avg_cost = sum(costs) / len(costs) if costs else base_cost
+                    min_cost = min(costs) if costs else base_cost
+                    max_cost = max(costs) if costs else base_cost
+                    best_supplier = min(supplier_quotes, key=lambda x: x.cost).supplier_name if supplier_quotes else None
+                    
+                    # Calcular precio sugerido con margen sobre el costo promedio
                     margin = random.uniform(0.18, 0.32)
-                    suggested = base_cost * (1 + margin)
+                    suggested = avg_cost * (1 + margin)
                     
                     routes.append(RoutePrice(
                         origin=origin,
@@ -4008,10 +4079,14 @@ def generate_route_prices():
                         transport_mode=mode_info["mode"],
                         container_size=size,
                         container_type="dry",
-                        base_cost=round(base_cost, 2),
+                        supplier_quotes=supplier_quotes,
+                        avg_cost=round(avg_cost, 2),
+                        min_cost=round(min_cost, 2),
+                        max_cost=round(max_cost, 2),
+                        best_supplier=best_supplier,
                         suggested_price=round(suggested, 2),
                         margin_percent=round(margin * 100, 1),
-                        transit_days=random.randint(8, 35),
+                        transit_days=transit_days,
                         validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                         validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
                     ))
