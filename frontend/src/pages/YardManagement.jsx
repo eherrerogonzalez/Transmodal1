@@ -538,15 +538,15 @@ export default function YardManagement() {
                 .sort((a, b) => b[1] - a[1])
                 .map(([size, count]) => (
                   <div key={size} className="flex items-center justify-between">
-                    <span className="text-slate-300">{size}</span>
+                    <span className="text-slate-600">{size}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-emerald-500 rounded-full"
                           style={{ width: `${(count / stats.total_occupied) * 100}%` }}
                         />
                       </div>
-                      <span className="text-white font-bold w-8 text-right">{count}</span>
+                      <span className="text-slate-800 font-bold w-8 text-right">{count}</span>
                     </div>
                   </div>
                 ))}
