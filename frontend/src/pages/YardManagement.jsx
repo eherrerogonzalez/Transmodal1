@@ -240,7 +240,7 @@ export default function YardManagement() {
                           return (
                             <div
                               key={`${cell.row}-${cell.column}`}
-                              className={`w-10 h-10 rounded-sm flex flex-col items-center justify-center cursor-pointer transition-all ${getCellColor(cell)} ${isSelected ? 'ring-2 ring-yellow-400' : ''}`}
+                              className={`w-10 h-10 rounded flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 ${getCellColor(cell)} ${isSelected ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-slate-900' : ''}`}
                               onClick={() => {
                                 if (cell.containers.length > 0) {
                                   const topContainer = cell.containers[cell.containers.length - 1];
@@ -253,12 +253,12 @@ export default function YardManagement() {
                             >
                               {cell.is_occupied && (
                                 <>
-                                  <span className="text-xs font-bold text-white">{cell.total_containers}</span>
-                                  <div className="flex gap-px">
+                                  <span className="text-sm font-bold text-white drop-shadow-md">{cell.total_containers}</span>
+                                  <div className="flex gap-0.5">
                                     {cell.containers.map((c, i) => (
                                       <div 
                                         key={i} 
-                                        className={`w-1.5 h-1.5 rounded-full ${c.status === 'full' ? 'bg-emerald-400' : 'bg-slate-400'}`}
+                                        className={`w-1.5 h-1.5 rounded-full ${c.status === 'full' ? 'bg-white' : 'bg-white/40'}`}
                                       />
                                     ))}
                                   </div>
