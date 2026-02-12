@@ -3596,6 +3596,740 @@ async def create_order_with_containers(order: OrderCreateNew, user: dict = Depen
         "message": f"Orden {order_number} creada con {len(order.containers)} contenedor(es)"
     }
 
+# ==================== OPERATIONS MODULE - MODELS ====================
+
+class UserType(BaseModel):
+    """Tipos de usuario del sistema"""
+    type: str  # "client", "operations", "admin"
+    permissions: List[str] = []
+
+class OperationsUser(BaseModel):
+    """Usuario del portal de operaciones"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    username: str
+    email: str
+    full_name: str
+    user_type: str = "operations"
+    is_active: bool = True
+
+class ContainerCost(BaseModel):
+    """Costos asociados a un contenedor"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    container_id: str
+    container_number: str
+    cost_type: str  # flete_maritimo, flete_ferroviario, maniobras_portuarias, maniobra_patio_vacios, transporte_terrestre, almacenaje, servicios_aduanales, estadias, demoras
+    description: str
+    amount: float
+    currency: str = "USD"
+    date: str
+    vendor: Optional[str] = None
+    invoice_number: Optional[str] = None
+
+class ContainerRevenue(BaseModel):
+    """Ingresos asociados a un contenedor"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    container_id: str
+    container_number: str
+    revenue_type: str  # flete_cobrado, servicios_adicionales, almacenaje_cobrado, maniobras_cobradas
+    description: str
+    amount: float
+    currency: str = "USD"
+    date: str
+    client_name: str
+    invoice_number: Optional[str] = None
+
+class ContainerProfitability(BaseModel):
+    """Rentabilidad de un contenedor"""
+    container_id: str
+    container_number: str
+    client_name: str
+    origin: str
+    destination: str
+    status: str
+    total_revenue: float
+    total_costs: float
+    profit: float
+    margin_percent: float
+    costs_breakdown: List[ContainerCost]
+    revenue_breakdown: List[ContainerRevenue]
+
+class ProfitabilityDashboard(BaseModel):
+    """Dashboard de rentabilidad general"""
+    period_start: str
+    period_end: str
+    total_revenue: float
+    total_costs: float
+    total_profit: float
+    margin_percent: float
+    containers_count: int
+    by_client: List[dict]
+    by_route: List[dict]
+    top_profitable: List[dict]
+    least_profitable: List[dict]
+    monthly_trend: List[dict]
+
+# ==================== PRICING/QUOTES MODULE - MODELS ====================
+
+class RoutePrice(BaseModel):
+    """Precio de una ruta específica"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    origin: str
+    destination: str
+    transport_mode: str  # maritime, rail, truck, intermodal
+    container_size: str  # 20ft, 40ft, 40ft HC
+    container_type: str  # dry, reefer
+    base_cost: float  # Costo base para Transmodal
+    suggested_price: float  # Precio sugerido al cliente
+    margin_percent: float
+    transit_days: int
+    validity_start: str
+    validity_end: str
+    is_active: bool = True
+    notes: Optional[str] = None
+
+class AdditionalService(BaseModel):
+    """Servicio adicional para cotizaciones"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    name: str
+    description: str
+    unit: str  # per_container, per_day, per_ton, fixed
+    base_cost: float
+    suggested_price: float
+    is_active: bool = True
+
+class QuoteLineItem(BaseModel):
+    """Línea de cotización"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    item_type: str  # route, service
+    description: str
+    quantity: int = 1
+    unit_price: float
+    unit_cost: float
+    total_price: float
+    total_cost: float
+    margin_percent: float
+
+class Quote(BaseModel):
+    """Cotización completa"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    quote_number: str
+    client_name: str
+    client_email: Optional[str] = None
+    client_phone: Optional[str] = None
+    is_new_client: bool = False
+    created_by: str
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    valid_until: str
+    status: str = "draft"  # draft, sent, accepted, rejected, expired
+    items: List[QuoteLineItem] = []
+    subtotal: float = 0.0
+    tax_percent: float = 16.0
+    tax_amount: float = 0.0
+    total: float = 0.0
+    total_cost: float = 0.0
+    total_margin: float = 0.0
+    margin_percent: float = 0.0
+    notes: Optional[str] = None
+    terms_conditions: Optional[str] = None
+
+# ==================== OPERATIONS MOCK DATA ====================
+
+COST_TYPES = [
+    {"code": "flete_maritimo", "name": "Flete Marítimo", "icon": "ship"},
+    {"code": "flete_ferroviario", "name": "Flete Ferroviario", "icon": "train"},
+    {"code": "maniobras_portuarias", "name": "Maniobras Portuarias", "icon": "anchor"},
+    {"code": "maniobra_patio_vacios", "name": "Maniobra Patio de Vacíos", "icon": "box"},
+    {"code": "transporte_terrestre", "name": "Transporte Terrestre", "icon": "truck"},
+    {"code": "almacenaje", "name": "Almacenaje", "icon": "warehouse"},
+    {"code": "servicios_aduanales", "name": "Servicios Aduanales", "icon": "file-text"},
+    {"code": "estadias", "name": "Estadías", "icon": "clock"},
+    {"code": "demoras", "name": "Demoras", "icon": "alert-triangle"},
+]
+
+REVENUE_TYPES = [
+    {"code": "flete_cobrado", "name": "Flete Cobrado"},
+    {"code": "servicios_adicionales", "name": "Servicios Adicionales"},
+    {"code": "almacenaje_cobrado", "name": "Almacenaje Cobrado"},
+    {"code": "maniobras_cobradas", "name": "Maniobras Cobradas"},
+]
+
+MOCK_OPERATIONS_USER = {
+    "id": "ops_001",
+    "username": "operaciones",
+    "email": "operaciones@transmodal.com",
+    "full_name": "Juan Pérez",
+    "user_type": "operations"
+}
+
+CLIENTS_LIST = [
+    "Pernod Ricard", "Diageo", "Beam Suntory", "Brown-Forman", "Campari Group",
+    "AB InBev", "Heineken", "Coca-Cola FEMSA", "Nestlé", "Unilever"
+]
+
+def generate_container_costs(container_id: str, container_number: str):
+    """Genera costos mock para un contenedor"""
+    costs = []
+    base_date = datetime.now(timezone.utc) - timedelta(days=random.randint(5, 30))
+    
+    # Flete marítimo o ferroviario
+    mode = random.choice(["flete_maritimo", "flete_ferroviario"])
+    costs.append(ContainerCost(
+        container_id=container_id,
+        container_number=container_number,
+        cost_type=mode,
+        description="Flete principal" if mode == "flete_maritimo" else "Flete ferroviario",
+        amount=round(random.uniform(1800, 3500), 2),
+        date=base_date.strftime("%Y-%m-%d"),
+        vendor=random.choice(["MSC", "Maersk", "CMA CGM", "Ferromex", "KCSM"])
+    ))
+    
+    # Maniobras portuarias
+    costs.append(ContainerCost(
+        container_id=container_id,
+        container_number=container_number,
+        cost_type="maniobras_portuarias",
+        description="Maniobras en puerto",
+        amount=round(random.uniform(150, 400), 2),
+        date=(base_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+        vendor=random.choice(["SSA", "APM Terminals", "Hutchison"])
+    ))
+    
+    # Transporte terrestre
+    costs.append(ContainerCost(
+        container_id=container_id,
+        container_number=container_number,
+        cost_type="transporte_terrestre",
+        description="Arrastre local",
+        amount=round(random.uniform(200, 600), 2),
+        date=(base_date + timedelta(days=2)).strftime("%Y-%m-%d"),
+        vendor=random.choice(["Transportes del Norte", "Fletes Rápidos", "Logística Express"])
+    ))
+    
+    # Servicios aduanales
+    costs.append(ContainerCost(
+        container_id=container_id,
+        container_number=container_number,
+        cost_type="servicios_aduanales",
+        description="Honorarios y trámites",
+        amount=round(random.uniform(180, 350), 2),
+        date=(base_date + timedelta(days=1)).strftime("%Y-%m-%d"),
+        vendor=random.choice(["Agencia Aduanal López", "Customs Pro", "Despachos Express"])
+    ))
+    
+    # Opcionalmente agregar costos extras
+    if random.random() > 0.6:
+        costs.append(ContainerCost(
+            container_id=container_id,
+            container_number=container_number,
+            cost_type="almacenaje",
+            description=f"Almacenaje {random.randint(1,5)} días",
+            amount=round(random.uniform(50, 200), 2),
+            date=(base_date + timedelta(days=3)).strftime("%Y-%m-%d")
+        ))
+    
+    if random.random() > 0.7:
+        costs.append(ContainerCost(
+            container_id=container_id,
+            container_number=container_number,
+            cost_type="estadias",
+            description=f"Estadía {random.randint(1,3)} días",
+            amount=round(random.uniform(100, 350), 2),
+            date=(base_date + timedelta(days=4)).strftime("%Y-%m-%d")
+        ))
+    
+    if random.random() > 0.8:
+        costs.append(ContainerCost(
+            container_id=container_id,
+            container_number=container_number,
+            cost_type="demoras",
+            description="Demora por inspección",
+            amount=round(random.uniform(150, 400), 2),
+            date=(base_date + timedelta(days=5)).strftime("%Y-%m-%d")
+        ))
+    
+    if random.random() > 0.7:
+        costs.append(ContainerCost(
+            container_id=container_id,
+            container_number=container_number,
+            cost_type="maniobra_patio_vacios",
+            description="Maniobra retorno vacío",
+            amount=round(random.uniform(80, 180), 2),
+            date=(base_date + timedelta(days=6)).strftime("%Y-%m-%d")
+        ))
+    
+    return costs
+
+def generate_container_revenue(container_id: str, container_number: str, client_name: str, total_costs: float):
+    """Genera ingresos mock para un contenedor basado en los costos"""
+    revenues = []
+    base_date = datetime.now(timezone.utc) - timedelta(days=random.randint(1, 10))
+    
+    # Margen objetivo entre 15% y 35%
+    target_margin = random.uniform(0.15, 0.35)
+    base_revenue = total_costs * (1 + target_margin)
+    
+    # Flete cobrado (80% del ingreso)
+    flete_amount = base_revenue * 0.80
+    revenues.append(ContainerRevenue(
+        container_id=container_id,
+        container_number=container_number,
+        revenue_type="flete_cobrado",
+        description="Servicio de transporte integral",
+        amount=round(flete_amount, 2),
+        date=base_date.strftime("%Y-%m-%d"),
+        client_name=client_name,
+        invoice_number=f"FAC-{random.randint(10000, 99999)}"
+    ))
+    
+    # Servicios adicionales
+    if random.random() > 0.5:
+        revenues.append(ContainerRevenue(
+            container_id=container_id,
+            container_number=container_number,
+            revenue_type="servicios_adicionales",
+            description="Servicios adicionales",
+            amount=round(base_revenue * random.uniform(0.05, 0.15), 2),
+            date=base_date.strftime("%Y-%m-%d"),
+            client_name=client_name
+        ))
+    
+    # Almacenaje cobrado
+    if random.random() > 0.6:
+        revenues.append(ContainerRevenue(
+            container_id=container_id,
+            container_number=container_number,
+            revenue_type="almacenaje_cobrado",
+            description="Almacenaje en CEDIS",
+            amount=round(random.uniform(100, 400), 2),
+            date=base_date.strftime("%Y-%m-%d"),
+            client_name=client_name
+        ))
+    
+    return revenues
+
+def generate_operations_containers():
+    """Genera contenedores con datos de rentabilidad"""
+    containers = []
+    
+    for i in range(50):
+        container_id = str(uuid.uuid4())
+        container_number = generate_container_number()
+        client = random.choice(CLIENTS_LIST)
+        origin = random.choice(["Shanghai", "Rotterdam", "Hamburg", "Los Angeles", "Singapore"])
+        destination = random.choice(["Manzanillo", "Veracruz", "Lázaro Cárdenas", "Altamira"])
+        status = random.choice(["delivered", "in_transit", "at_port", "customs"])
+        
+        # Generar costos e ingresos
+        costs = generate_container_costs(container_id, container_number)
+        total_costs = sum(c.amount for c in costs)
+        revenues = generate_container_revenue(container_id, container_number, client, total_costs)
+        total_revenue = sum(r.amount for r in revenues)
+        
+        profit = total_revenue - total_costs
+        margin = (profit / total_revenue * 100) if total_revenue > 0 else 0
+        
+        containers.append(ContainerProfitability(
+            container_id=container_id,
+            container_number=container_number,
+            client_name=client,
+            origin=origin,
+            destination=destination,
+            status=status,
+            total_revenue=round(total_revenue, 2),
+            total_costs=round(total_costs, 2),
+            profit=round(profit, 2),
+            margin_percent=round(margin, 1),
+            costs_breakdown=costs,
+            revenue_breakdown=revenues
+        ))
+    
+    return containers
+
+# Cache para datos de operaciones
+_operations_containers_cache = None
+
+def get_operations_containers():
+    global _operations_containers_cache
+    if _operations_containers_cache is None:
+        _operations_containers_cache = generate_operations_containers()
+    return _operations_containers_cache
+
+def reset_operations_cache():
+    global _operations_containers_cache
+    _operations_containers_cache = None
+
+# ==================== ROUTES PRICING DATA ====================
+
+def generate_route_prices():
+    """Genera precios de rutas"""
+    routes = []
+    
+    origins = ["Shanghai", "Rotterdam", "Hamburg", "Los Angeles", "Singapore", "Miami", "Long Beach"]
+    destinations = ["Manzanillo", "Veracruz", "Lázaro Cárdenas", "Altamira", "CDMX", "Guadalajara", "Monterrey"]
+    modes = [
+        {"mode": "maritime", "name": "Marítimo"},
+        {"mode": "rail", "name": "Ferroviario"},
+        {"mode": "intermodal", "name": "Intermodal"},
+    ]
+    sizes = ["20ft", "40ft", "40ft HC"]
+    
+    for origin in origins:
+        for dest in destinations[:4]:  # Solo puertos como destino marítimo
+            for mode_info in modes:
+                for size in sizes:
+                    base_cost = random.uniform(1500, 4000)
+                    margin = random.uniform(0.18, 0.32)
+                    suggested = base_cost * (1 + margin)
+                    
+                    routes.append(RoutePrice(
+                        origin=origin,
+                        destination=dest,
+                        transport_mode=mode_info["mode"],
+                        container_size=size,
+                        container_type="dry",
+                        base_cost=round(base_cost, 2),
+                        suggested_price=round(suggested, 2),
+                        margin_percent=round(margin * 100, 1),
+                        transit_days=random.randint(8, 35),
+                        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+                    ))
+    
+    return routes
+
+def generate_additional_services():
+    """Genera servicios adicionales"""
+    services = [
+        AdditionalService(code="ALM001", name="Almacenaje en Puerto", description="Por día después de período libre", unit="per_day", base_cost=25, suggested_price=45),
+        AdditionalService(code="ALM002", name="Almacenaje en CEDIS", description="Por día en almacén", unit="per_day", base_cost=15, suggested_price=30),
+        AdditionalService(code="MAN001", name="Maniobra de Carga", description="Carga/descarga en puerto", unit="per_container", base_cost=150, suggested_price=250),
+        AdditionalService(code="MAN002", name="Maniobra Patio Vacíos", description="Manejo de contenedor vacío", unit="per_container", base_cost=80, suggested_price=150),
+        AdditionalService(code="SEG001", name="Seguro de Carga", description="Cobertura básica", unit="per_container", base_cost=50, suggested_price=120),
+        AdditionalService(code="SEG002", name="Seguro Premium", description="Cobertura total", unit="per_container", base_cost=150, suggested_price=300),
+        AdditionalService(code="ADU001", name="Despacho Aduanal", description="Trámites de importación", unit="per_container", base_cost=180, suggested_price=350),
+        AdditionalService(code="ADU002", name="Revisión en Origen", description="Inspección pre-embarque", unit="per_container", base_cost=100, suggested_price=200),
+        AdditionalService(code="TRA001", name="Arrastre Local", description="Transporte puerto-CEDIS", unit="per_container", base_cost=200, suggested_price=380),
+        AdditionalService(code="TRA002", name="Entrega Final", description="Distribución última milla", unit="per_container", base_cost=150, suggested_price=280),
+        AdditionalService(code="DOC001", name="Gestión Documental", description="BL, facturas, certificados", unit="fixed", base_cost=50, suggested_price=120),
+        AdditionalService(code="URG001", name="Servicio Express", description="Prioridad en operación", unit="per_container", base_cost=200, suggested_price=450),
+    ]
+    return services
+
+_route_prices_cache = None
+_additional_services_cache = None
+_quotes_cache = []
+
+def get_route_prices():
+    global _route_prices_cache
+    if _route_prices_cache is None:
+        _route_prices_cache = generate_route_prices()
+    return _route_prices_cache
+
+def get_additional_services():
+    global _additional_services_cache
+    if _additional_services_cache is None:
+        _additional_services_cache = generate_additional_services()
+    return _additional_services_cache
+
+# ==================== OPERATIONS ENDPOINTS ====================
+
+@api_router.post("/ops/auth/login")
+async def operations_login(request: LoginRequest):
+    """Login para portal de operaciones"""
+    # Credenciales mock para operaciones
+    valid_users = {
+        "operaciones": {"password": "ops123", "user": MOCK_OPERATIONS_USER},
+        "admin": {"password": "admin123", "user": {**MOCK_OPERATIONS_USER, "id": "ops_002", "username": "admin", "full_name": "Admin Sistema", "user_type": "admin"}}
+    }
+    
+    if request.username in valid_users and request.password == valid_users[request.username]["password"]:
+        return {
+            "token": f"ops_token_{request.username}_{uuid.uuid4().hex[:8]}",
+            "user": valid_users[request.username]["user"]
+        }
+    
+    raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+@api_router.get("/ops/dashboard/profitability")
+async def get_profitability_dashboard(
+    period_start: str = None,
+    period_end: str = None,
+    user: dict = Depends(verify_token)
+):
+    """Dashboard de rentabilidad general"""
+    containers = get_operations_containers()
+    
+    # Calcular totales
+    total_revenue = sum(c.total_revenue for c in containers)
+    total_costs = sum(c.total_costs for c in containers)
+    total_profit = total_revenue - total_costs
+    margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+    
+    # Por cliente
+    by_client = {}
+    for c in containers:
+        if c.client_name not in by_client:
+            by_client[c.client_name] = {"revenue": 0, "costs": 0, "profit": 0, "containers": 0}
+        by_client[c.client_name]["revenue"] += c.total_revenue
+        by_client[c.client_name]["costs"] += c.total_costs
+        by_client[c.client_name]["profit"] += c.profit
+        by_client[c.client_name]["containers"] += 1
+    
+    by_client_list = [
+        {
+            "client": k,
+            "revenue": round(v["revenue"], 2),
+            "costs": round(v["costs"], 2),
+            "profit": round(v["profit"], 2),
+            "margin": round((v["profit"] / v["revenue"] * 100) if v["revenue"] > 0 else 0, 1),
+            "containers": v["containers"]
+        }
+        for k, v in by_client.items()
+    ]
+    by_client_list.sort(key=lambda x: x["profit"], reverse=True)
+    
+    # Por ruta
+    by_route = {}
+    for c in containers:
+        route_key = f"{c.origin} → {c.destination}"
+        if route_key not in by_route:
+            by_route[route_key] = {"revenue": 0, "costs": 0, "profit": 0, "containers": 0}
+        by_route[route_key]["revenue"] += c.total_revenue
+        by_route[route_key]["costs"] += c.total_costs
+        by_route[route_key]["profit"] += c.profit
+        by_route[route_key]["containers"] += 1
+    
+    by_route_list = [
+        {
+            "route": k,
+            "revenue": round(v["revenue"], 2),
+            "costs": round(v["costs"], 2),
+            "profit": round(v["profit"], 2),
+            "margin": round((v["profit"] / v["revenue"] * 100) if v["revenue"] > 0 else 0, 1),
+            "containers": v["containers"]
+        }
+        for k, v in by_route.items()
+    ]
+    by_route_list.sort(key=lambda x: x["profit"], reverse=True)
+    
+    # Top y bottom
+    sorted_containers = sorted(containers, key=lambda x: x.margin_percent, reverse=True)
+    top_profitable = [
+        {"container": c.container_number, "client": c.client_name, "margin": c.margin_percent, "profit": c.profit}
+        for c in sorted_containers[:5]
+    ]
+    least_profitable = [
+        {"container": c.container_number, "client": c.client_name, "margin": c.margin_percent, "profit": c.profit}
+        for c in sorted_containers[-5:]
+    ]
+    
+    # Tendencia mensual (mock)
+    months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"]
+    monthly_trend = [
+        {
+            "month": m,
+            "revenue": round(random.uniform(80000, 150000), 2),
+            "costs": round(random.uniform(60000, 110000), 2),
+            "profit": round(random.uniform(15000, 40000), 2)
+        }
+        for m in months
+    ]
+    
+    return ProfitabilityDashboard(
+        period_start=period_start or (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d"),
+        period_end=period_end or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        total_revenue=round(total_revenue, 2),
+        total_costs=round(total_costs, 2),
+        total_profit=round(total_profit, 2),
+        margin_percent=round(margin, 1),
+        containers_count=len(containers),
+        by_client=by_client_list,
+        by_route=by_route_list,
+        top_profitable=top_profitable,
+        least_profitable=least_profitable,
+        monthly_trend=monthly_trend
+    )
+
+@api_router.get("/ops/containers")
+async def get_operations_containers_list(user: dict = Depends(verify_token)):
+    """Lista de contenedores con rentabilidad"""
+    containers = get_operations_containers()
+    return {
+        "total": len(containers),
+        "containers": [
+            {
+                "container_id": c.container_id,
+                "container_number": c.container_number,
+                "client_name": c.client_name,
+                "origin": c.origin,
+                "destination": c.destination,
+                "status": c.status,
+                "total_revenue": c.total_revenue,
+                "total_costs": c.total_costs,
+                "profit": c.profit,
+                "margin_percent": c.margin_percent
+            }
+            for c in containers
+        ]
+    }
+
+@api_router.get("/ops/containers/{container_id}/profitability")
+async def get_container_profitability(container_id: str, user: dict = Depends(verify_token)):
+    """Detalle de rentabilidad de un contenedor"""
+    containers = get_operations_containers()
+    container = next((c for c in containers if c.container_id == container_id), None)
+    
+    if not container:
+        raise HTTPException(status_code=404, detail="Contenedor no encontrado")
+    
+    return container
+
+# ==================== PRICING/QUOTES ENDPOINTS ====================
+
+@api_router.get("/ops/pricing/routes")
+async def get_pricing_routes(
+    origin: str = None,
+    destination: str = None,
+    transport_mode: str = None,
+    container_size: str = None,
+    user: dict = Depends(verify_token)
+):
+    """Obtener rutas con precios"""
+    routes = get_route_prices()
+    
+    if origin:
+        routes = [r for r in routes if r.origin.lower() == origin.lower()]
+    if destination:
+        routes = [r for r in routes if r.destination.lower() == destination.lower()]
+    if transport_mode:
+        routes = [r for r in routes if r.transport_mode == transport_mode]
+    if container_size:
+        routes = [r for r in routes if r.container_size == container_size]
+    
+    return {"total": len(routes), "routes": routes}
+
+@api_router.get("/ops/pricing/services")
+async def get_pricing_services(user: dict = Depends(verify_token)):
+    """Obtener servicios adicionales"""
+    return {"services": get_additional_services()}
+
+@api_router.get("/ops/pricing/origins")
+async def get_available_origins(user: dict = Depends(verify_token)):
+    """Obtener orígenes disponibles"""
+    routes = get_route_prices()
+    origins = list(set(r.origin for r in routes))
+    return {"origins": sorted(origins)}
+
+@api_router.get("/ops/pricing/destinations")
+async def get_available_destinations(user: dict = Depends(verify_token)):
+    """Obtener destinos disponibles"""
+    routes = get_route_prices()
+    destinations = list(set(r.destination for r in routes))
+    return {"destinations": sorted(destinations)}
+
+@api_router.post("/ops/quotes")
+async def create_quote(quote_data: dict, user: dict = Depends(verify_token)):
+    """Crear nueva cotización"""
+    global _quotes_cache
+    
+    quote_number = f"COT-{datetime.now().year}-{random.randint(10000, 99999)}"
+    
+    items = []
+    total_price = 0
+    total_cost = 0
+    
+    for item in quote_data.get("items", []):
+        unit_price = item.get("unit_price", 0)
+        unit_cost = item.get("unit_cost", 0)
+        quantity = item.get("quantity", 1)
+        item_total_price = unit_price * quantity
+        item_total_cost = unit_cost * quantity
+        
+        items.append(QuoteLineItem(
+            item_type=item.get("item_type", "service"),
+            description=item.get("description", ""),
+            quantity=quantity,
+            unit_price=unit_price,
+            unit_cost=unit_cost,
+            total_price=item_total_price,
+            total_cost=item_total_cost,
+            margin_percent=round(((unit_price - unit_cost) / unit_price * 100) if unit_price > 0 else 0, 1)
+        ))
+        
+        total_price += item_total_price
+        total_cost += item_total_cost
+    
+    tax_percent = quote_data.get("tax_percent", 16.0)
+    tax_amount = total_price * (tax_percent / 100)
+    total_with_tax = total_price + tax_amount
+    total_margin = total_price - total_cost
+    margin_percent = (total_margin / total_price * 100) if total_price > 0 else 0
+    
+    quote = Quote(
+        quote_number=quote_number,
+        client_name=quote_data.get("client_name", ""),
+        client_email=quote_data.get("client_email"),
+        client_phone=quote_data.get("client_phone"),
+        is_new_client=quote_data.get("is_new_client", False),
+        created_by=user.get("username", "system"),
+        valid_until=(datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d"),
+        status="draft",
+        items=items,
+        subtotal=round(total_price, 2),
+        tax_percent=tax_percent,
+        tax_amount=round(tax_amount, 2),
+        total=round(total_with_tax, 2),
+        total_cost=round(total_cost, 2),
+        total_margin=round(total_margin, 2),
+        margin_percent=round(margin_percent, 1),
+        notes=quote_data.get("notes"),
+        terms_conditions=quote_data.get("terms_conditions", "Precios válidos por 30 días. Sujeto a disponibilidad.")
+    )
+    
+    _quotes_cache.append(quote)
+    
+    return {"success": True, "quote": quote}
+
+@api_router.get("/ops/quotes")
+async def get_quotes(status: str = None, user: dict = Depends(verify_token)):
+    """Obtener cotizaciones"""
+    quotes = _quotes_cache
+    
+    if status:
+        quotes = [q for q in quotes if q.status == status]
+    
+    return {"total": len(quotes), "quotes": quotes}
+
+@api_router.get("/ops/quotes/{quote_id}")
+async def get_quote(quote_id: str, user: dict = Depends(verify_token)):
+    """Obtener detalle de cotización"""
+    quote = next((q for q in _quotes_cache if q.id == quote_id), None)
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    return quote
+
+@api_router.put("/ops/quotes/{quote_id}/status")
+async def update_quote_status(quote_id: str, new_status: str, user: dict = Depends(verify_token)):
+    """Actualizar estado de cotización"""
+    quote = next((q for q in _quotes_cache if q.id == quote_id), None)
+    if not quote:
+        raise HTTPException(status_code=404, detail="Cotización no encontrada")
+    
+    quote.status = new_status
+    return {"success": True, "quote": quote}
+
+@api_router.get("/ops/cost-types")
+async def get_cost_types(user: dict = Depends(verify_token)):
+    """Obtener tipos de costos"""
+    return {"cost_types": COST_TYPES}
+
+@api_router.post("/ops/reset-data")
+async def reset_operations_data(user: dict = Depends(verify_token)):
+    """Resetear datos de operaciones"""
+    reset_operations_cache()
+    return {"success": True, "message": "Datos regenerados"}
+
 # Include the router in the main app
 # ==================== YARD MANAGEMENT MODELS ====================
 
