@@ -16,7 +16,8 @@ import {
   Calculator,
   Warehouse,
   ClipboardCheck,
-  Plus
+  Plus,
+  Container
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
@@ -30,6 +31,7 @@ const navItems = [
   { path: '/map', icon: Map, label: 'Mapa' },
   { path: '/inventory', icon: Warehouse, label: 'Cadena Suministro' },
   { path: '/planning', icon: Calculator, label: 'Planeación' },
+  { path: '/yard', icon: Container, label: 'Gestión de Patio' },
   { path: '/additionals', icon: Receipt, label: 'Adicionales' },
   { path: '/account', icon: CreditCard, label: 'Estado de Cuenta' },
 ];

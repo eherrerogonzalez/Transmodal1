@@ -17,6 +17,7 @@ import Planning from "./pages/Planning";
 import Inventory from "./pages/Inventory";
 import OrderConfirmations from "./pages/OrderConfirmations";
 import CreateOrder from "./pages/CreateOrder";
+import YardManagement from "./pages/YardManagement";
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
             <Route path="/map" element={<ContainerMap />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/planning" element={<Planning />} />
+            <Route path="/yard" element={<YardManagement />} />
             <Route path="/additionals" element={<Additionals />} />
             <Route path="/account" element={<AccountStatement />} />
           </Route>
