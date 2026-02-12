@@ -346,17 +346,22 @@ class TestContainersByDeparture:
         
         data = response.json()
         
-        # Should be a list
-        assert isinstance(data, list), "Response should be a list"
+        # Response is an object with containers list and total
+        assert isinstance(data, dict), "Response should be a dict"
+        assert "containers" in data, "Missing 'containers' field"
+        assert "total" in data, "Missing 'total' field"
         
-        if len(data) > 0:
-            container = data[0]
+        containers = data["containers"]
+        assert isinstance(containers, list), "containers should be a list"
+        
+        if len(containers) > 0:
+            container = containers[0]
             assert "container_number" in container, "Missing 'container_number'"
             assert "expected_departure" in container, "Missing 'expected_departure'"
             assert "position" in container, "Missing 'position'"
             assert "client_name" in container, "Missing 'client_name'"
             
-            print(f"✓ Containers by departure structure valid: {len(data)} containers")
+            print(f"✓ Containers by departure structure valid: {len(containers)} containers")
         else:
             print("✓ No containers with departure dates (valid empty list)")
     
@@ -366,10 +371,11 @@ class TestContainersByDeparture:
         assert response.status_code == 200
         
         data = response.json()
+        containers = data.get("containers", [])
         
-        if len(data) > 1:
+        if len(containers) > 1:
             # Check that dates are in ascending order
-            dates = [c["expected_departure"] for c in data if c.get("expected_departure")]
+            dates = [c["expected_departure"] for c in containers if c.get("expected_departure")]
             for i in range(len(dates) - 1):
                 assert dates[i] <= dates[i + 1], f"Dates not sorted: {dates[i]} > {dates[i + 1]}"
             print(f"✓ Containers sorted by departure date")
