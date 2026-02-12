@@ -273,29 +273,29 @@ export default function YardManagement() {
               </div>
 
               {/* Legend */}
-              <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-300">
+              <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-sm bg-slate-700/30 border border-slate-600/50" />
-                  <span>Vacío</span>
+                  <div className="w-4 h-4 rounded bg-blue-50 border border-blue-100" />
+                  <span>Disponible</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-cyan-500 to-teal-600" />
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-blue-500 to-blue-600" />
                   <span>&lt;60%</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-amber-500 to-orange-600" />
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-amber-400 to-orange-500" />
                   <span>60-80%</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-sm bg-gradient-to-br from-rose-600 to-red-700" />
+                  <div className="w-4 h-4 rounded bg-gradient-to-br from-rose-500 to-red-600" />
                   <span>&gt;80%</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-white border-2 border-white shadow" />
                   <span>Lleno</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-slate-400 ring-2 ring-slate-400/30" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/50 border border-white/80" />
                   <span>Vacío</span>
                 </div>
               </div>
