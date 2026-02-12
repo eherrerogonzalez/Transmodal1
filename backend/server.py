@@ -3670,15 +3670,35 @@ class ProfitabilityDashboard(BaseModel):
 
 # ==================== PRICING/QUOTES MODULE - MODELS ====================
 
+class SupplierQuote(BaseModel):
+    """Cotización de un proveedor para una ruta"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    supplier_name: str
+    supplier_type: str  # naviera, ferroviaria, transportista
+    cost: float
+    currency: str = "USD"
+    transit_days: int
+    validity_start: str
+    validity_end: str
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    notes: Optional[str] = None
+
 class RoutePrice(BaseModel):
-    """Precio de una ruta específica"""
+    """Precio de una ruta específica con múltiples proveedores"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     origin: str
     destination: str
     transport_mode: str  # maritime, rail, truck, intermodal
     container_size: str  # 20ft, 40ft, 40ft HC
     container_type: str  # dry, reefer
-    base_cost: float  # Costo base para Transmodal
+    # Costos de proveedores
+    supplier_quotes: List[SupplierQuote] = []
+    avg_cost: float = 0.0  # Costo promedio calculado
+    min_cost: float = 0.0  # Costo mínimo
+    max_cost: float = 0.0  # Costo máximo
+    best_supplier: Optional[str] = None  # Proveedor con mejor precio
+    # Precio de venta
     suggested_price: float  # Precio sugerido al cliente
     margin_percent: float
     transit_days: int
