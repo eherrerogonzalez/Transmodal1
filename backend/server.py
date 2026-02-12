@@ -3597,6 +3597,443 @@ async def create_order_with_containers(order: OrderCreateNew, user: dict = Depen
     }
 
 # Include the router in the main app
+# ==================== YARD MANAGEMENT MODELS ====================
+
+class YardLocation(BaseModel):
+    """Una ubicación/celda en el patio de contenedores"""
+    row: int  # Fila (1-10)
+    column: int  # Columna (A-Z representada como 1-26)
+    stack_level: int  # Nivel de apilamiento (0 = vacío, 1-5 = niveles)
+    
+class YardContainer(BaseModel):
+    """Un contenedor en el patio"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    container_number: str
+    size: str  # 20ft, 40ft, 40ft HC
+    type: str  # dry, reefer, open_top
+    status: str  # full, empty
+    arrival_date: str
+    expected_departure: Optional[str] = None
+    client_name: str
+    destination: Optional[str] = None
+    priority: int = 5  # 1 = más urgente, 10 = menos urgente
+    weight: float = 0.0
+    # Posición en patio
+    row: int
+    column: int
+    stack_level: int
+
+class YardCell(BaseModel):
+    """Una celda del patio con sus contenedores apilados"""
+    row: int
+    column: int
+    column_letter: str
+    max_stack: int = 5
+    containers: List[YardContainer] = []
+    is_occupied: bool = False
+    total_containers: int = 0
+
+class YardLayout(BaseModel):
+    """Layout completo del patio"""
+    rows: int
+    columns: int
+    cells: List[YardCell]
+    total_capacity: int
+    total_occupied: int
+    utilization_percent: float
+    full_containers: int
+    empty_containers: int
+
+class MoveOperation(BaseModel):
+    """Una operación de movimiento de contenedor"""
+    container_number: str
+    from_position: str
+    to_position: str
+    reason: str
+
+class RetrievalPlan(BaseModel):
+    """Plan de recuperación de un contenedor"""
+    target_container: YardContainer
+    target_position: str
+    containers_above: int
+    moves_required: List[MoveOperation]
+    total_moves: int
+    estimated_time_minutes: int
+
+class OptimizedRetrievalResponse(BaseModel):
+    """Respuesta de optimización de retrieval"""
+    container_number: str
+    found: bool
+    current_position: str
+    stack_level: int
+    containers_above: int
+    retrieval_plan: Optional[RetrievalPlan] = None
+    message: str
+
+# ==================== YARD MOCK DATA GENERATION ====================
+
+YARD_CONFIG = {
+    "rows": 8,
+    "columns": 12,
+    "max_stack": 5
+}
+
+def generate_yard_data():
+    """Genera datos mock del patio de contenedores"""
+    cells = []
+    all_containers = []
+    
+    # Clientes para los contenedores
+    clients = ["Pernod Ricard", "Diageo", "Beam Suntory", "Brown-Forman", "Campari Group"]
+    destinations = ["CEDIS GDL", "CEDIS MTY", "CEDIS CDMX", "Walmart Centro", "Costco Norte", "HEB Noreste"]
+    
+    for row in range(1, YARD_CONFIG["rows"] + 1):
+        for col in range(1, YARD_CONFIG["columns"] + 1):
+            col_letter = chr(64 + col)  # 1=A, 2=B, etc.
+            
+            # Probabilidad de tener contenedores en esta celda
+            has_containers = random.random() > 0.3  # 70% de celdas ocupadas
+            
+            cell_containers = []
+            if has_containers:
+                # Número aleatorio de contenedores apilados (1-4)
+                num_containers = random.randint(1, 4)
+                
+                for level in range(1, num_containers + 1):
+                    # Algunos contenedores vacíos, otros llenos
+                    is_empty = random.random() > 0.7  # 30% vacíos
+                    
+                    # Prioridad basada en fecha de salida
+                    days_until_departure = random.randint(0, 14)
+                    priority = min(10, max(1, days_until_departure))
+                    
+                    arrival_date = (datetime.now(timezone.utc) - timedelta(days=random.randint(1, 30))).strftime("%Y-%m-%d")
+                    departure_date = None if is_empty else (datetime.now(timezone.utc) + timedelta(days=days_until_departure)).strftime("%Y-%m-%d")
+                    
+                    container = YardContainer(
+                        container_number=generate_container_number(),
+                        size=random.choice(["20ft", "40ft", "40ft HC"]),
+                        type=random.choice(["dry", "dry", "dry", "reefer"]),
+                        status="empty" if is_empty else "full",
+                        arrival_date=arrival_date,
+                        expected_departure=departure_date,
+                        client_name=random.choice(clients) if not is_empty else "N/A",
+                        destination=random.choice(destinations) if not is_empty else None,
+                        priority=priority if not is_empty else 10,
+                        weight=0.0 if is_empty else round(random.uniform(8000, 25000), 0),
+                        row=row,
+                        column=col,
+                        stack_level=level
+                    )
+                    cell_containers.append(container)
+                    all_containers.append(container)
+            
+            cells.append(YardCell(
+                row=row,
+                column=col,
+                column_letter=col_letter,
+                max_stack=YARD_CONFIG["max_stack"],
+                containers=cell_containers,
+                is_occupied=len(cell_containers) > 0,
+                total_containers=len(cell_containers)
+            ))
+    
+    # Calcular estadísticas
+    total_capacity = YARD_CONFIG["rows"] * YARD_CONFIG["columns"] * YARD_CONFIG["max_stack"]
+    total_occupied = len(all_containers)
+    full_containers = len([c for c in all_containers if c.status == "full"])
+    empty_containers = len([c for c in all_containers if c.status == "empty"])
+    
+    return YardLayout(
+        rows=YARD_CONFIG["rows"],
+        columns=YARD_CONFIG["columns"],
+        cells=cells,
+        total_capacity=total_capacity,
+        total_occupied=total_occupied,
+        utilization_percent=round((total_occupied / total_capacity) * 100, 1),
+        full_containers=full_containers,
+        empty_containers=empty_containers
+    )
+
+# Cache para mantener consistencia durante la sesión
+_yard_cache = None
+
+def get_yard_layout():
+    """Obtiene el layout del patio (cached)"""
+    global _yard_cache
+    if _yard_cache is None:
+        _yard_cache = generate_yard_data()
+    return _yard_cache
+
+def reset_yard_cache():
+    """Resetea el cache del patio"""
+    global _yard_cache
+    _yard_cache = None
+
+def find_container_in_yard(container_number: str, yard: YardLayout) -> Optional[tuple]:
+    """Encuentra un contenedor en el patio. Retorna (cell, container) o None"""
+    for cell in yard.cells:
+        for container in cell.containers:
+            if container.container_number == container_number:
+                return (cell, container)
+    return None
+
+def calculate_optimal_retrieval(container_number: str, yard: YardLayout) -> OptimizedRetrievalResponse:
+    """
+    Calcula el plan óptimo para recuperar un contenedor.
+    Considera las fechas de salida de los contenedores que hay que mover.
+    """
+    result = find_container_in_yard(container_number, yard)
+    
+    if not result:
+        return OptimizedRetrievalResponse(
+            container_number=container_number,
+            found=False,
+            current_position="",
+            stack_level=0,
+            containers_above=0,
+            retrieval_plan=None,
+            message=f"❌ Contenedor {container_number} no encontrado en el patio"
+        )
+    
+    cell, target_container = result
+    col_letter = chr(64 + cell.column)
+    position = f"{col_letter}{cell.row}"
+    
+    # Encontrar contenedores encima del target
+    containers_above = [c for c in cell.containers if c.stack_level > target_container.stack_level]
+    containers_above.sort(key=lambda x: x.stack_level, reverse=True)  # De arriba a abajo
+    
+    if not containers_above:
+        # No hay contenedores encima - retrieval directo
+        return OptimizedRetrievalResponse(
+            container_number=container_number,
+            found=True,
+            current_position=position,
+            stack_level=target_container.stack_level,
+            containers_above=0,
+            retrieval_plan=RetrievalPlan(
+                target_container=target_container,
+                target_position=position,
+                containers_above=0,
+                moves_required=[],
+                total_moves=0,
+                estimated_time_minutes=5
+            ),
+            message=f"✅ Contenedor en posición {position}-{target_container.stack_level}. Acceso directo, sin movimientos necesarios."
+        )
+    
+    # Hay contenedores encima - calcular plan de movimientos
+    moves = []
+    
+    # Encontrar celdas vacías cercanas ordenadas por proximidad
+    empty_positions = []
+    for c in yard.cells:
+        if c.total_containers < YARD_CONFIG["max_stack"]:
+            distance = abs(c.row - cell.row) + abs(c.column - cell.column)
+            available_slots = YARD_CONFIG["max_stack"] - c.total_containers
+            empty_positions.append((c, distance, available_slots))
+    
+    # Ordenar por distancia y disponibilidad
+    empty_positions.sort(key=lambda x: (x[1], -x[2]))
+    
+    # Asignar movimientos priorizando por fecha de salida (mover primero los que salen después)
+    containers_above.sort(key=lambda x: (x.expected_departure or "9999-99-99"), reverse=True)
+    
+    position_index = 0
+    for container_to_move in containers_above:
+        if position_index >= len(empty_positions):
+            # No hay más espacio - buscar cualquier celda disponible
+            continue
+            
+        target_cell, distance, _ = empty_positions[position_index]
+        target_col_letter = chr(64 + target_cell.column)
+        new_level = target_cell.total_containers + 1
+        
+        from_pos = f"{col_letter}{cell.row}-{container_to_move.stack_level}"
+        to_pos = f"{target_col_letter}{target_cell.row}-{new_level}"
+        
+        reason = f"Mover para acceder a {container_number}"
+        if container_to_move.expected_departure:
+            reason += f" (sale: {container_to_move.expected_departure})"
+        
+        moves.append(MoveOperation(
+            container_number=container_to_move.container_number,
+            from_position=from_pos,
+            to_position=to_pos,
+            reason=reason
+        ))
+        
+        # Actualizar disponibilidad de la celda destino
+        empty_positions[position_index] = (
+            target_cell, 
+            distance, 
+            empty_positions[position_index][2] - 1
+        )
+        if empty_positions[position_index][2] <= 0:
+            position_index += 1
+    
+    # Tiempo estimado: 5 min por movimiento + 5 min para el retrieval final
+    estimated_time = len(moves) * 5 + 5
+    
+    return OptimizedRetrievalResponse(
+        container_number=container_number,
+        found=True,
+        current_position=position,
+        stack_level=target_container.stack_level,
+        containers_above=len(containers_above),
+        retrieval_plan=RetrievalPlan(
+            target_container=target_container,
+            target_position=position,
+            containers_above=len(containers_above),
+            moves_required=moves,
+            total_moves=len(moves),
+            estimated_time_minutes=estimated_time
+        ),
+        message=f"📦 Contenedor en {position}-{target_container.stack_level}. Se requieren {len(moves)} movimiento(s) para acceder."
+    )
+
+# ==================== YARD MANAGEMENT ENDPOINTS ====================
+
+@api_router.get("/yard/layout", response_model=YardLayout)
+async def get_yard_layout_endpoint(user: dict = Depends(verify_token)):
+    """Obtener el layout completo del patio de contenedores"""
+    return get_yard_layout()
+
+@api_router.get("/yard/stats")
+async def get_yard_statistics(user: dict = Depends(verify_token)):
+    """Obtener estadísticas del patio"""
+    yard = get_yard_layout()
+    
+    # Agrupar por cliente
+    containers_by_client = {}
+    containers_by_status = {"full": 0, "empty": 0}
+    containers_by_size = {}
+    departures_today = []
+    departures_week = []
+    
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    week_end = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+    
+    for cell in yard.cells:
+        for container in cell.containers:
+            # Por cliente
+            client = container.client_name
+            if client not in containers_by_client:
+                containers_by_client[client] = 0
+            containers_by_client[client] += 1
+            
+            # Por status
+            containers_by_status[container.status] += 1
+            
+            # Por tamaño
+            if container.size not in containers_by_size:
+                containers_by_size[container.size] = 0
+            containers_by_size[container.size] += 1
+            
+            # Salidas próximas
+            if container.expected_departure:
+                if container.expected_departure <= today:
+                    departures_today.append({
+                        "container": container.container_number,
+                        "client": container.client_name,
+                        "destination": container.destination,
+                        "position": f"{chr(64+container.column)}{container.row}-{container.stack_level}"
+                    })
+                elif container.expected_departure <= week_end:
+                    departures_week.append({
+                        "container": container.container_number,
+                        "client": container.client_name,
+                        "destination": container.destination,
+                        "expected_date": container.expected_departure,
+                        "position": f"{chr(64+container.column)}{container.row}-{container.stack_level}"
+                    })
+    
+    return {
+        "total_capacity": yard.total_capacity,
+        "total_occupied": yard.total_occupied,
+        "utilization_percent": yard.utilization_percent,
+        "full_containers": yard.full_containers,
+        "empty_containers": yard.empty_containers,
+        "by_client": containers_by_client,
+        "by_status": containers_by_status,
+        "by_size": containers_by_size,
+        "departures_today": departures_today,
+        "departures_this_week": departures_week
+    }
+
+@api_router.get("/yard/search/{container_number}")
+async def search_container_in_yard(container_number: str, user: dict = Depends(verify_token)):
+    """Buscar un contenedor específico en el patio"""
+    yard = get_yard_layout()
+    result = find_container_in_yard(container_number, yard)
+    
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Contenedor {container_number} no encontrado")
+    
+    cell, container = result
+    col_letter = chr(64 + cell.column)
+    
+    return {
+        "found": True,
+        "container": container,
+        "position": {
+            "row": cell.row,
+            "column": cell.column,
+            "column_letter": col_letter,
+            "stack_level": container.stack_level,
+            "full_position": f"{col_letter}{cell.row}-{container.stack_level}"
+        },
+        "containers_above": len([c for c in cell.containers if c.stack_level > container.stack_level]),
+        "containers_below": len([c for c in cell.containers if c.stack_level < container.stack_level])
+    }
+
+@api_router.post("/yard/optimize-retrieval/{container_number}", response_model=OptimizedRetrievalResponse)
+async def optimize_container_retrieval(container_number: str, user: dict = Depends(verify_token)):
+    """
+    Calcula el plan óptimo para recuperar un contenedor minimizando movimientos.
+    Considera las fechas de salida de los contenedores que hay que mover.
+    """
+    yard = get_yard_layout()
+    return calculate_optimal_retrieval(container_number, yard)
+
+@api_router.get("/yard/containers/by-departure")
+async def get_containers_by_departure(user: dict = Depends(verify_token)):
+    """Obtener contenedores ordenados por fecha de salida (más urgentes primero)"""
+    yard = get_yard_layout()
+    
+    containers_with_departure = []
+    for cell in yard.cells:
+        for container in cell.containers:
+            if container.status == "full" and container.expected_departure:
+                col_letter = chr(64 + container.column)
+                containers_above = len([c for c in cell.containers if c.stack_level > container.stack_level])
+                
+                containers_with_departure.append({
+                    "container_number": container.container_number,
+                    "client_name": container.client_name,
+                    "destination": container.destination,
+                    "expected_departure": container.expected_departure,
+                    "position": f"{col_letter}{container.row}-{container.stack_level}",
+                    "containers_above": containers_above,
+                    "needs_moves": containers_above > 0,
+                    "priority": container.priority
+                })
+    
+    # Ordenar por fecha de salida y prioridad
+    containers_with_departure.sort(key=lambda x: (x["expected_departure"], x["priority"]))
+    
+    return {
+        "total": len(containers_with_departure),
+        "containers": containers_with_departure
+    }
+
+@api_router.post("/yard/reset")
+async def reset_yard_data(user: dict = Depends(verify_token)):
+    """Resetear los datos del patio (regenerar datos mock)"""
+    reset_yard_cache()
+    return {"message": "Datos del patio regenerados", "success": True}
+
 app.include_router(api_router)
 
 app.add_middleware(
