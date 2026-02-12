@@ -109,11 +109,11 @@ export default function YardManagement() {
   };
 
   const getCellColor = (cell) => {
-    if (!cell.is_occupied) return 'bg-slate-700/30 border border-slate-600/50';
+    if (!cell.is_occupied) return 'bg-blue-50/50 border border-blue-100';
     const ratio = cell.total_containers / cell.max_stack;
-    if (ratio >= 0.8) return 'bg-gradient-to-br from-rose-600 to-red-700 shadow-lg shadow-red-500/20';
-    if (ratio >= 0.6) return 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20';
-    return 'bg-gradient-to-br from-cyan-500 to-teal-600 shadow-lg shadow-cyan-500/20';
+    if (ratio >= 0.8) return 'bg-gradient-to-br from-rose-500 to-red-600';
+    if (ratio >= 0.6) return 'bg-gradient-to-br from-amber-400 to-orange-500';
+    return 'bg-gradient-to-br from-blue-500 to-blue-600';
   };
 
   if (loading) {
