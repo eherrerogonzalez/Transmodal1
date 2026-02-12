@@ -4323,6 +4323,84 @@ async def get_available_destinations(user: dict = Depends(verify_token)):
     destinations = list(set(r.destination for r in routes))
     return {"destinations": sorted(destinations)}
 
+@api_router.get("/ops/pricing/suppliers")
+async def get_available_suppliers(user: dict = Depends(verify_token)):
+    """Obtener lista de proveedores disponibles"""
+    return {"suppliers": SUPPLIERS}
+
+@api_router.get("/ops/pricing/routes/{route_id}")
+async def get_route_detail(route_id: str, user: dict = Depends(verify_token)):
+    """Obtener detalle de una ruta con sus proveedores"""
+    routes = get_route_prices()
+    route = next((r for r in routes if r.id == route_id), None)
+    if not route:
+        raise HTTPException(status_code=404, detail="Ruta no encontrada")
+    return route
+
+@api_router.post("/ops/pricing/routes/{route_id}/suppliers")
+async def add_supplier_to_route(route_id: str, supplier_data: dict, user: dict = Depends(verify_token)):
+    """Agregar cotización de proveedor a una ruta"""
+    global _route_prices_cache
+    routes = get_route_prices()
+    route = next((r for r in routes if r.id == route_id), None)
+    
+    if not route:
+        raise HTTPException(status_code=404, detail="Ruta no encontrada")
+    
+    # Crear nueva cotización de proveedor
+    new_quote = SupplierQuote(
+        supplier_name=supplier_data.get("supplier_name"),
+        supplier_type=supplier_data.get("supplier_type", "naviera"),
+        cost=float(supplier_data.get("cost", 0)),
+        transit_days=int(supplier_data.get("transit_days", 0)),
+        validity_start=supplier_data.get("validity_start", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+        validity_end=supplier_data.get("validity_end", (datetime.now(timezone.utc) + timedelta(days=60)).strftime("%Y-%m-%d")),
+        contact_name=supplier_data.get("contact_name"),
+        contact_email=supplier_data.get("contact_email"),
+        notes=supplier_data.get("notes")
+    )
+    
+    # Agregar a la ruta
+    route.supplier_quotes.append(new_quote)
+    
+    # Recalcular estadísticas
+    costs = [q.cost for q in route.supplier_quotes]
+    route.avg_cost = round(sum(costs) / len(costs), 2)
+    route.min_cost = round(min(costs), 2)
+    route.max_cost = round(max(costs), 2)
+    route.best_supplier = min(route.supplier_quotes, key=lambda x: x.cost).supplier_name
+    
+    # Recalcular margen
+    if route.suggested_price > 0:
+        route.margin_percent = round(((route.suggested_price - route.avg_cost) / route.suggested_price) * 100, 1)
+    
+    return {"success": True, "route": route}
+
+@api_router.delete("/ops/pricing/routes/{route_id}/suppliers/{supplier_id}")
+async def remove_supplier_from_route(route_id: str, supplier_id: str, user: dict = Depends(verify_token)):
+    """Eliminar cotización de proveedor de una ruta"""
+    routes = get_route_prices()
+    route = next((r for r in routes if r.id == route_id), None)
+    
+    if not route:
+        raise HTTPException(status_code=404, detail="Ruta no encontrada")
+    
+    route.supplier_quotes = [q for q in route.supplier_quotes if q.id != supplier_id]
+    
+    if route.supplier_quotes:
+        costs = [q.cost for q in route.supplier_quotes]
+        route.avg_cost = round(sum(costs) / len(costs), 2)
+        route.min_cost = round(min(costs), 2)
+        route.max_cost = round(max(costs), 2)
+        route.best_supplier = min(route.supplier_quotes, key=lambda x: x.cost).supplier_name
+    else:
+        route.avg_cost = 0
+        route.min_cost = 0
+        route.max_cost = 0
+        route.best_supplier = None
+    
+    return {"success": True, "route": route}
+
 @api_router.post("/ops/quotes")
 async def create_quote(quote_data: dict, user: dict = Depends(verify_token)):
     """Crear nueva cotización"""
