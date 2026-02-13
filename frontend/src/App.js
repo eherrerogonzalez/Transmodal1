@@ -26,6 +26,8 @@ import OpsDashboard from "./pages/operations/OpsDashboard";
 import OpsContainers from "./pages/operations/OpsContainers";
 import OpsPricing from "./pages/operations/OpsPricing";
 import OpsQuotes from "./pages/operations/OpsQuotes";
+import OpsSuppliers from "./pages/operations/OpsSuppliers";
+import OpsClients from "./pages/operations/OpsClients";
 
 function App() {
   return (
