@@ -44,6 +44,8 @@ function App() {
             <Route path="containers" element={<OpsContainers />} />
             <Route path="pricing" element={<OpsPricing />} />
             <Route path="quotes" element={<OpsQuotes />} />
+            <Route path="suppliers" element={<OpsSuppliers />} />
+            <Route path="clients" element={<OpsClients />} />
             <Route index element={<Navigate to="/ops/dashboard" replace />} />
           </Route>
           
