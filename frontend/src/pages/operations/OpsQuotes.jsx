@@ -19,7 +19,10 @@ import {
   TrendingDown,
   DollarSign,
   Minus,
-  Tag
+  Tag,
+  Percent,
+  AlertCircle,
+  MapPin
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -35,49 +38,31 @@ const STATUS_LABELS = {
   expired: { label: 'Expirada', color: 'bg-amber-100 text-amber-600' }
 };
 
-const CONCEPT_CATEGORIES = {
-  tarifa: { label: 'Tarifa', color: 'bg-blue-100 text-blue-700', icon: Tag },
-  extra: { label: 'Extra', color: 'bg-amber-100 text-amber-700', icon: Plus }
-};
-
-// Conceptos predefinidos de INGRESO
-const INCOME_CONCEPTS = [
-  { id: 'flete_maritimo', name: 'Flete Marítimo', category: 'tarifa', defaultPrice: 0 },
-  { id: 'flete_terrestre', name: 'Flete Terrestre', category: 'tarifa', defaultPrice: 0 },
-  { id: 'flete_ferroviario', name: 'Flete Ferroviario', category: 'tarifa', defaultPrice: 0 },
-  { id: 'despacho_aduanal', name: 'Despacho Aduanal', category: 'tarifa', defaultPrice: 0 },
-  { id: 'maniobras', name: 'Maniobras Portuarias', category: 'tarifa', defaultPrice: 0 },
-  { id: 'seguro', name: 'Seguro de Carga', category: 'tarifa', defaultPrice: 0 },
-  { id: 'almacenaje', name: 'Almacenaje', category: 'extra', defaultPrice: 0 },
-  { id: 'demoras', name: 'Demoras', category: 'extra', defaultPrice: 0 },
-  { id: 'inspeccion', name: 'Inspección Adicional', category: 'extra', defaultPrice: 0 },
-  { id: 'revalidacion', name: 'Revalidación', category: 'extra', defaultPrice: 0 },
-  { id: 'fumigacion', name: 'Fumigación', category: 'extra', defaultPrice: 0 },
-  { id: 'custodia', name: 'Custodia', category: 'extra', defaultPrice: 0 },
-  { id: 'otro_ingreso', name: 'Otro Ingreso', category: 'extra', defaultPrice: 0 },
+const MARGIN_OPTIONS = [
+  { value: 30, label: '30%', color: 'bg-emerald-600' },
+  { value: 25, label: '25%', color: 'bg-emerald-500' },
+  { value: 20, label: '20%', color: 'bg-blue-500' },
+  { value: 15, label: '15%', color: 'bg-amber-500' }
 ];
 
-// Conceptos predefinidos de EGRESO/COSTO
-const EXPENSE_CONCEPTS = [
-  { id: 'costo_flete_maritimo', name: 'Costo Flete Marítimo', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_flete_terrestre', name: 'Costo Flete Terrestre', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_flete_ferroviario', name: 'Costo Flete Ferroviario', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_despacho', name: 'Costo Despacho Aduanal', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_maniobras', name: 'Costo Maniobras', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_seguro', name: 'Costo Seguro', category: 'tarifa', defaultCost: 0 },
-  { id: 'costo_almacenaje', name: 'Costo Almacenaje', category: 'extra', defaultCost: 0 },
-  { id: 'costo_demoras', name: 'Costo Demoras', category: 'extra', defaultCost: 0 },
-  { id: 'costo_inspeccion', name: 'Costo Inspección', category: 'extra', defaultCost: 0 },
-  { id: 'costo_revalidacion', name: 'Costo Revalidación', category: 'extra', defaultCost: 0 },
-  { id: 'costo_fumigacion', name: 'Costo Fumigación', category: 'extra', defaultCost: 0 },
-  { id: 'costo_custodia', name: 'Costo Custodia', category: 'extra', defaultCost: 0 },
-  { id: 'otro_costo', name: 'Otro Costo', category: 'extra', defaultCost: 0 },
+// Conceptos predefinidos de COSTOS EXTRA
+const EXTRA_COST_CONCEPTS = [
+  { id: 'almacenaje', name: 'Almacenaje', defaultCost: 0 },
+  { id: 'demoras', name: 'Demoras', defaultCost: 0 },
+  { id: 'inspeccion', name: 'Inspección Adicional', defaultCost: 0 },
+  { id: 'revalidacion', name: 'Revalidación', defaultCost: 0 },
+  { id: 'fumigacion', name: 'Fumigación', defaultCost: 0 },
+  { id: 'custodia', name: 'Custodia', defaultCost: 0 },
+  { id: 'maniobras_extra', name: 'Maniobras Adicionales', defaultCost: 0 },
+  { id: 'seguro_extra', name: 'Seguro Adicional', defaultCost: 0 },
+  { id: 'documentacion', name: 'Gestión Documental', defaultCost: 0 },
+  { id: 'transporte_especial', name: 'Transporte Especial', defaultCost: 0 },
+  { id: 'otro_costo', name: 'Otro Costo', defaultCost: 0 },
 ];
 
 export default function OpsQuotes() {
   const [quotes, setQuotes] = useState([]);
   const [routes, setRoutes] = useState([]);
-  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewQuote, setShowNewQuote] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState(null);
@@ -90,22 +75,21 @@ export default function OpsQuotes() {
   const [isNewClient, setIsNewClient] = useState(false);
   const [notes, setNotes] = useState('');
   
-  // Route info
+  // Route (required)
   const [selectedRoute, setSelectedRoute] = useState(null);
-  const [routeDescription, setRouteDescription] = useState('');
-
-  // Income items (Ingresos)
-  const [incomeItems, setIncomeItems] = useState([]);
-  const [showIncomeSelector, setShowIncomeSelector] = useState(false);
-  const [customIncomeName, setCustomIncomeName] = useState('');
-  
-  // Expense items (Egresos/Costos)
-  const [expenseItems, setExpenseItems] = useState([]);
-  const [showExpenseSelector, setShowExpenseSelector] = useState(false);
-  const [customExpenseName, setCustomExpenseName] = useState('');
-
-  // Route selector
   const [showRouteSelector, setShowRouteSelector] = useState(false);
+  const [routeSearchQuery, setRouteSearchQuery] = useState('');
+  
+  // Tarifa All-In (from route)
+  const [tarifaAllIn, setTarifaAllIn] = useState(0);
+  
+  // Extra costs
+  const [extraCosts, setExtraCosts] = useState([]);
+  const [showExtraCostSelector, setShowExtraCostSelector] = useState(false);
+  const [customCostName, setCustomCostName] = useState('');
+  
+  // Margin selector
+  const [selectedMargin, setSelectedMargin] = useState(25);
 
   useEffect(() => {
     loadData();
@@ -114,14 +98,12 @@ export default function OpsQuotes() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [quotesRes, routesRes, servicesRes] = await Promise.all([
+      const [quotesRes, routesRes] = await Promise.all([
         api.get('/ops/quotes'),
-        api.get('/ops/pricing/routes'),
-        api.get('/ops/pricing/services')
+        api.get('/ops/pricing/routes')
       ]);
       setQuotes(quotesRes.data.quotes);
       setRoutes(routesRes.data.routes);
-      setServices(servicesRes.data.services);
     } catch (error) {
       toast.error('Error al cargar datos');
     } finally {
@@ -130,114 +112,76 @@ export default function OpsQuotes() {
   };
 
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
   };
 
-  // Route selection
+  // Select route from pricing
   const selectRoute = (route) => {
     setSelectedRoute(route);
-    setRouteDescription(`${route.origin} → ${route.destination} (${route.transport_mode}, ${route.container_size})`);
+    // Use base_cost as the all-in tariff
+    setTarifaAllIn(route.base_cost || 0);
     setShowRouteSelector(false);
     toast.success('Ruta seleccionada');
   };
 
-  // Add income item
-  const addIncomeItem = (concept, isCustom = false) => {
+  // Add extra cost
+  const addExtraCost = (concept, isCustom = false) => {
     const newItem = {
       id: Date.now().toString(),
       concept_id: isCustom ? 'custom' : concept.id,
-      name: isCustom ? customIncomeName : concept.name,
-      category: isCustom ? 'extra' : concept.category,
-      amount: 0,
-      quantity: 1
+      name: isCustom ? customCostName : concept.name,
+      amount: 0
     };
-    setIncomeItems([...incomeItems, newItem]);
-    setShowIncomeSelector(false);
-    setCustomIncomeName('');
-    toast.success('Concepto de ingreso agregado');
+    setExtraCosts([...extraCosts, newItem]);
+    setShowExtraCostSelector(false);
+    setCustomCostName('');
+    toast.success('Costo extra agregado');
   };
 
-  // Add expense item
-  const addExpenseItem = (concept, isCustom = false) => {
-    const newItem = {
-      id: Date.now().toString(),
-      concept_id: isCustom ? 'custom' : concept.id,
-      name: isCustom ? customExpenseName : concept.name,
-      category: isCustom ? 'extra' : concept.category,
-      amount: 0,
-      quantity: 1
-    };
-    setExpenseItems([...expenseItems, newItem]);
-    setShowExpenseSelector(false);
-    setCustomExpenseName('');
-    toast.success('Concepto de costo agregado');
-  };
-
-  // Update income item
-  const updateIncomeItem = (itemId, field, value) => {
-    setIncomeItems(incomeItems.map(item => 
-      item.id === itemId ? { ...item, [field]: field === 'amount' ? parseFloat(value) || 0 : parseInt(value) || 1 } : item
+  // Update extra cost
+  const updateExtraCost = (itemId, amount) => {
+    setExtraCosts(extraCosts.map(item => 
+      item.id === itemId ? { ...item, amount: parseFloat(amount) || 0 } : item
     ));
   };
 
-  // Update expense item
-  const updateExpenseItem = (itemId, field, value) => {
-    setExpenseItems(expenseItems.map(item => 
-      item.id === itemId ? { ...item, [field]: field === 'amount' ? parseFloat(value) || 0 : parseInt(value) || 1 } : item
-    ));
-  };
-
-  // Remove items
-  const removeIncomeItem = (itemId) => setIncomeItems(incomeItems.filter(i => i.id !== itemId));
-  const removeExpenseItem = (itemId) => setExpenseItems(expenseItems.filter(i => i.id !== itemId));
+  // Remove extra cost
+  const removeExtraCost = (itemId) => setExtraCosts(extraCosts.filter(i => i.id !== itemId));
 
   // Calculate totals
   const calculateTotals = () => {
-    // Ingresos
-    const ingresosTarifa = incomeItems
-      .filter(i => i.category === 'tarifa')
-      .reduce((sum, item) => sum + (item.amount * item.quantity), 0);
-    const ingresosExtra = incomeItems
-      .filter(i => i.category === 'extra')
-      .reduce((sum, item) => sum + (item.amount * item.quantity), 0);
-    const totalIngresos = ingresosTarifa + ingresosExtra;
+    // Total de costos
+    const costoTarifa = tarifaAllIn;
+    const costosExtras = extraCosts.reduce((sum, item) => sum + item.amount, 0);
+    const totalCostos = costoTarifa + costosExtras;
     
-    // Egresos
-    const egresosTarifa = expenseItems
-      .filter(i => i.category === 'tarifa')
-      .reduce((sum, item) => sum + (item.amount * item.quantity), 0);
-    const egresosExtra = expenseItems
-      .filter(i => i.category === 'extra')
-      .reduce((sum, item) => sum + (item.amount * item.quantity), 0);
-    const totalEgresos = egresosTarifa + egresosExtra;
+    // Precio de venta con margen seleccionado
+    // Fórmula: Precio = Costo / (1 - margen)
+    const marginDecimal = selectedMargin / 100;
+    const precioVentaTarifa = costoTarifa > 0 ? costoTarifa / (1 - marginDecimal) : 0;
+    const precioVentaExtras = costosExtras > 0 ? costosExtras / (1 - marginDecimal) : 0;
+    const precioVentaTotal = totalCostos > 0 ? totalCostos / (1 - marginDecimal) : 0;
     
     // Utilidad
-    const utilidadTarifa = ingresosTarifa - egresosTarifa;
-    const utilidadExtra = ingresosExtra - egresosExtra;
-    const utilidadTotal = totalIngresos - totalEgresos;
-    
-    // Margen
-    const margenTarifa = ingresosTarifa > 0 ? (utilidadTarifa / ingresosTarifa * 100) : 0;
-    const margenExtra = ingresosExtra > 0 ? (utilidadExtra / ingresosExtra * 100) : 0;
-    const margenTotal = totalIngresos > 0 ? (utilidadTotal / totalIngresos * 100) : 0;
+    const utilidadTarifa = precioVentaTarifa - costoTarifa;
+    const utilidadExtras = precioVentaExtras - costosExtras;
+    const utilidadTotal = precioVentaTotal - totalCostos;
     
     // IVA
-    const iva = totalIngresos * 0.16;
-    const totalConIva = totalIngresos + iva;
+    const iva = precioVentaTotal * 0.16;
+    const totalConIva = precioVentaTotal + iva;
     
     return {
-      ingresosTarifa,
-      ingresosExtra,
-      totalIngresos,
-      egresosTarifa,
-      egresosExtra,
-      totalEgresos,
+      costoTarifa,
+      costosExtras,
+      totalCostos,
+      precioVentaTarifa,
+      precioVentaExtras,
+      precioVentaTotal,
       utilidadTarifa,
-      utilidadExtra,
+      utilidadExtras,
       utilidadTotal,
-      margenTarifa,
-      margenExtra,
-      margenTotal,
+      margen: selectedMargin,
       iva,
       totalConIva
     };
@@ -248,8 +192,8 @@ export default function OpsQuotes() {
       toast.error('Ingresa el nombre del cliente');
       return;
     }
-    if (incomeItems.length === 0) {
-      toast.error('Agrega al menos un concepto de ingreso');
+    if (!selectedRoute) {
+      toast.error('Selecciona una ruta');
       return;
     }
 
@@ -261,26 +205,32 @@ export default function OpsQuotes() {
         client_email: clientEmail,
         client_phone: clientPhone,
         is_new_client: isNewClient,
-        route_description: routeDescription,
-        items: incomeItems.map(item => ({
-          item_type: 'income',
-          description: item.name,
-          category: item.category,
-          quantity: item.quantity,
-          unit_price: item.amount,
-          unit_cost: 0
-        })),
-        expense_items: expenseItems.map(item => ({
-          item_type: 'expense',
-          description: item.name,
-          category: item.category,
-          quantity: item.quantity,
-          unit_cost: item.amount
-        })),
-        subtotal: totals.totalIngresos,
-        total_cost: totals.totalEgresos,
+        route_id: selectedRoute.id,
+        route_description: `${selectedRoute.origin} → ${selectedRoute.destination}`,
+        items: [
+          {
+            item_type: 'tarifa_all_in',
+            description: `Tarifa All-In: ${selectedRoute.origin} → ${selectedRoute.destination}`,
+            category: 'tarifa',
+            quantity: 1,
+            unit_price: totals.precioVentaTarifa,
+            unit_cost: totals.costoTarifa
+          },
+          ...extraCosts.map(cost => ({
+            item_type: 'extra_cost',
+            description: cost.name,
+            category: 'extra',
+            quantity: 1,
+            unit_price: cost.amount / (1 - selectedMargin / 100),
+            unit_cost: cost.amount
+          }))
+        ],
+        subtotal: totals.precioVentaTotal,
+        total_cost: totals.totalCostos,
         margin: totals.utilidadTotal,
-        margin_percent: totals.margenTotal,
+        margin_percent: selectedMargin,
+        tax_amount: totals.iva,
+        total: totals.totalConIva,
         notes: notes
       });
 
@@ -299,9 +249,9 @@ export default function OpsQuotes() {
     setClientPhone('');
     setIsNewClient(false);
     setSelectedRoute(null);
-    setRouteDescription('');
-    setIncomeItems([]);
-    setExpenseItems([]);
+    setTarifaAllIn(0);
+    setExtraCosts([]);
+    setSelectedMargin(25);
     setNotes('');
   };
 
@@ -311,6 +261,14 @@ export default function OpsQuotes() {
       window.print();
     }, 100);
   };
+
+  // Filter routes by search
+  const filteredRoutes = routes.filter(route => {
+    const searchLower = routeSearchQuery.toLowerCase();
+    return route.origin.toLowerCase().includes(searchLower) ||
+           route.destination.toLowerCase().includes(searchLower) ||
+           route.transport_mode.toLowerCase().includes(searchLower);
+  });
 
   const totals = calculateTotals();
 
@@ -328,7 +286,7 @@ export default function OpsQuotes() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Cotizaciones</h1>
-          <p className="text-slate-500">Crea y gestiona cotizaciones con análisis de utilidad</p>
+          <p className="text-slate-500">Crea cotizaciones con análisis de utilidad</p>
         </div>
         <Button onClick={() => setShowNewQuote(true)} className="bg-blue-600 hover:bg-blue-700" data-testid="new-quote-btn">
           <Plus className="w-4 h-4 mr-2" />
@@ -355,9 +313,10 @@ export default function OpsQuotes() {
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Cotización</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Cliente</th>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Ruta</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Estado</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Ingresos</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Costos</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Costo</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Venta</th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Utilidad</th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Margen</th>
                       <th className="text-center py-3 px-4 text-xs font-medium text-slate-500">Acciones</th>
@@ -374,32 +333,31 @@ export default function OpsQuotes() {
                           </td>
                           <td className="py-3 px-4">
                             <p className="text-sm font-medium text-slate-800">{quote.client_name}</p>
-                            {quote.is_new_client && (
-                              <span className="text-xs text-amber-600">Cliente nuevo</span>
-                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <p className="text-sm text-slate-600">{quote.route_description || '-'}</p>
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
                               {status.label}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right font-medium text-emerald-600">
-                            {formatCurrency(quote.subtotal || quote.total || 0)}
-                          </td>
-                          <td className="py-3 px-4 text-right font-medium text-red-500">
+                          <td className="py-3 px-4 text-right text-sm text-red-600">
                             {formatCurrency(quote.total_cost || 0)}
                           </td>
-                          <td className="py-3 px-4 text-right font-medium text-slate-800">
-                            {formatCurrency(quote.margin || (quote.subtotal - (quote.total_cost || 0)))}
+                          <td className="py-3 px-4 text-right text-sm font-medium text-slate-800">
+                            {formatCurrency(quote.subtotal || 0)}
+                          </td>
+                          <td className="py-3 px-4 text-right text-sm font-medium text-emerald-600">
+                            {formatCurrency(quote.margin || 0)}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              margin >= 20 ? 'bg-emerald-100 text-emerald-700' :
-                              margin >= 10 ? 'bg-blue-100 text-blue-700' :
-                              margin >= 0 ? 'bg-amber-100 text-amber-700' :
-                              'bg-red-100 text-red-700'
+                              margin >= 25 ? 'bg-emerald-100 text-emerald-700' :
+                              margin >= 20 ? 'bg-blue-100 text-blue-700' :
+                              'bg-amber-100 text-amber-700'
                             }`}>
-                              {margin.toFixed(1)}%
+                              {margin.toFixed(0)}%
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -476,270 +434,228 @@ export default function OpsQuotes() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isNewClient"
-                    checked={isNewClient}
-                    onChange={(e) => setIsNewClient(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300"
-                  />
-                  <label htmlFor="isNewClient" className="text-sm text-slate-600">Cliente nuevo</label>
-                </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isNewClient"
+                  checked={isNewClient}
+                  onChange={(e) => setIsNewClient(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300"
+                />
+                <label htmlFor="isNewClient" className="text-sm text-slate-600">Cliente nuevo</label>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Route Selection */}
-              <div>
-                <label className="text-sm text-slate-600 mb-1 block">Ruta (opcional)</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Ej: Shanghai → Manzanillo"
-                    value={routeDescription}
-                    onChange={(e) => setRouteDescription(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button variant="outline" onClick={() => setShowRouteSelector(true)}>
-                    <Ship className="w-4 h-4 mr-1" />
-                    Seleccionar
+          {/* Route Selection (Required) */}
+          <Card className={`bg-white shadow-sm ${selectedRoute ? 'border-emerald-300 border-2' : 'border-red-300 border-2'}`}>
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Ship className="w-5 h-5 text-blue-600" />
+                  <CardTitle className="text-slate-800">Ruta *</CardTitle>
+                  {!selectedRoute && (
+                    <span className="flex items-center gap-1 text-red-500 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      Requerido
+                    </span>
+                  )}
+                </div>
+                <Button onClick={() => setShowRouteSelector(true)} variant="outline" data-testid="select-route-btn">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {selectedRoute ? 'Cambiar Ruta' : 'Seleccionar Ruta'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {selectedRoute ? (
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-lg font-bold text-slate-800">
+                        {selectedRoute.origin} → {selectedRoute.destination}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {selectedRoute.transport_mode} • {selectedRoute.container_size} • {selectedRoute.transit_days} días
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-slate-500">Costo Base (All-In)</p>
+                      <p className="text-xl font-bold text-blue-600">{formatCurrency(selectedRoute.base_cost)}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 bg-slate-50 rounded-lg text-center border-2 border-dashed border-slate-300">
+                  <Ship className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500">Selecciona una ruta del área de Pricing</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tarifa All-In + Extra Costs */}
+          {selectedRoute && (
+            <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-red-500">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-5 h-5 text-red-600" />
+                    <CardTitle className="text-red-700">Costos</CardTitle>
+                  </div>
+                  <Button size="sm" onClick={() => setShowExtraCostSelector(true)} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" data-testid="add-extra-cost-btn">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar Costo Extra
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {/* Tarifa All-In */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-slate-800">Tarifa All-In</span>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Tarifa</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-40">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={tarifaAllIn}
+                            onChange={(e) => setTarifaAllIn(parseFloat(e.target.value) || 0)}
+                            className="text-right h-9"
+                          />
+                        </div>
+                        <span className="font-bold text-blue-600 w-32 text-right">{formatCurrency(tarifaAllIn)}</span>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* Income Section */}
-          <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                  <CardTitle className="text-emerald-700">Conceptos de Ingreso (Venta)</CardTitle>
-                </div>
-                <Button size="sm" onClick={() => setShowIncomeSelector(true)} className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-income-btn">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Agregar Ingreso
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {incomeItems.length === 0 ? (
-                <div className="p-6 bg-emerald-50 rounded-lg text-center">
-                  <DollarSign className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-                  <p className="text-emerald-600 text-sm">Agrega conceptos de ingreso a la cotización</p>
-                </div>
-              ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-emerald-50">
-                        <th className="text-left py-2 px-3 text-xs font-medium text-slate-600">Concepto</th>
-                        <th className="text-center py-2 px-3 text-xs font-medium text-slate-600 w-24">Tipo</th>
-                        <th className="text-center py-2 px-3 text-xs font-medium text-slate-600 w-20">Cant.</th>
-                        <th className="text-right py-2 px-3 text-xs font-medium text-slate-600 w-32">Precio Unit.</th>
-                        <th className="text-right py-2 px-3 text-xs font-medium text-slate-600 w-32">Total</th>
-                        <th className="w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {incomeItems.map((item) => {
-                        const cat = CONCEPT_CATEGORIES[item.category];
-                        return (
-                          <tr key={item.id} className="border-t border-slate-100">
-                            <td className="py-2 px-3 text-sm text-slate-700">{item.name}</td>
-                            <td className="py-2 px-3 text-center">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${cat.color}`}>
-                                {cat.label}
-                              </span>
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => updateIncomeItem(item.id, 'quantity', e.target.value)}
-                                className="w-full text-center h-8"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
+                  {/* Extra Costs */}
+                  {extraCosts.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-500 flex items-center gap-1">
+                        <Plus className="w-4 h-4" /> Costos Extra
+                      </p>
+                      {extraCosts.map((cost) => (
+                        <div key={cost.id} className="p-3 bg-amber-50 rounded-lg border border-amber-200 flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-700">{cost.name}</span>
+                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-32">
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={item.amount}
-                                onChange={(e) => updateIncomeItem(item.id, 'amount', e.target.value)}
-                                className="w-full text-right h-8"
+                                value={cost.amount}
+                                onChange={(e) => updateExtraCost(cost.id, e.target.value)}
+                                className="text-right h-8"
                               />
-                            </td>
-                            <td className="py-2 px-3 text-right text-sm font-medium text-emerald-600">
-                              {formatCurrency(item.amount * item.quantity)}
-                            </td>
-                            <td className="py-2 px-3">
-                              <button onClick={() => removeIncomeItem(item.id)} className="text-red-500 hover:text-red-700">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              
-              {/* Income Subtotals */}
-              {incomeItems.length > 0 && (
-                <div className="mt-3 p-3 bg-emerald-50 rounded-lg">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Ingresos Tarifa:</span>
-                    <span className="font-medium text-emerald-700">{formatCurrency(totals.ingresosTarifa)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Ingresos Extra:</span>
-                    <span className="font-medium text-amber-600">{formatCurrency(totals.ingresosExtra)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold border-t border-emerald-200 mt-2 pt-2">
-                    <span className="text-emerald-800">Total Ingresos:</span>
-                    <span className="text-emerald-700">{formatCurrency(totals.totalIngresos)}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                            </div>
+                            <span className="font-medium text-amber-600 w-28 text-right">{formatCurrency(cost.amount)}</span>
+                            <button onClick={() => removeExtraCost(cost.id)} className="text-red-500 hover:text-red-700">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-          {/* Expense Section */}
-          <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-red-500">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-center">
+                  {/* Cost Summary */}
+                  <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Costo Tarifa:</span>
+                      <span className="font-medium text-slate-700">{formatCurrency(totals.costoTarifa)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Costos Extra:</span>
+                      <span className="font-medium text-amber-600">{formatCurrency(totals.costosExtras)}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold border-t border-red-200 mt-2 pt-2">
+                      <span className="text-red-800">Total Costos:</span>
+                      <span className="text-red-600">{formatCurrency(totals.totalCostos)}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Margin Selector */}
+          {selectedRoute && (
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <TrendingDown className="w-5 h-5 text-red-600" />
-                  <CardTitle className="text-red-700">Conceptos de Egreso (Costo)</CardTitle>
+                  <Percent className="w-5 h-5 text-purple-600" />
+                  <CardTitle className="text-slate-800">Margen de Utilidad</CardTitle>
                 </div>
-                <Button size="sm" onClick={() => setShowExpenseSelector(true)} className="bg-red-600 hover:bg-red-700" data-testid="add-expense-btn">
-                  <Plus className="w-4 h-4 mr-1" />
-                  Agregar Costo
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {expenseItems.length === 0 ? (
-                <div className="p-6 bg-red-50 rounded-lg text-center">
-                  <Minus className="w-8 h-8 text-red-300 mx-auto mb-2" />
-                  <p className="text-red-600 text-sm">Agrega conceptos de costo a la cotización</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-3">
+                  {MARGIN_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setSelectedMargin(option.value)}
+                      className={`flex-1 py-4 px-6 rounded-xl font-bold text-xl transition-all ${
+                        selectedMargin === option.value
+                          ? `${option.color} text-white shadow-lg scale-105`
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                      data-testid={`margin-${option.value}`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-red-50">
-                        <th className="text-left py-2 px-3 text-xs font-medium text-slate-600">Concepto</th>
-                        <th className="text-center py-2 px-3 text-xs font-medium text-slate-600 w-24">Tipo</th>
-                        <th className="text-center py-2 px-3 text-xs font-medium text-slate-600 w-20">Cant.</th>
-                        <th className="text-right py-2 px-3 text-xs font-medium text-slate-600 w-32">Costo Unit.</th>
-                        <th className="text-right py-2 px-3 text-xs font-medium text-slate-600 w-32">Total</th>
-                        <th className="w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {expenseItems.map((item) => {
-                        const cat = CONCEPT_CATEGORIES[item.category];
-                        return (
-                          <tr key={item.id} className="border-t border-slate-100">
-                            <td className="py-2 px-3 text-sm text-slate-700">{item.name}</td>
-                            <td className="py-2 px-3 text-center">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${cat.color}`}>
-                                {cat.label}
-                              </span>
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => updateExpenseItem(item.id, 'quantity', e.target.value)}
-                                className="w-full text-center h-8"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={item.amount}
-                                onChange={(e) => updateExpenseItem(item.id, 'amount', e.target.value)}
-                                className="w-full text-right h-8"
-                              />
-                            </td>
-                            <td className="py-2 px-3 text-right text-sm font-medium text-red-600">
-                              {formatCurrency(item.amount * item.quantity)}
-                            </td>
-                            <td className="py-2 px-3">
-                              <button onClick={() => removeExpenseItem(item.id)} className="text-red-500 hover:text-red-700">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              
-              {/* Expense Subtotals */}
-              {expenseItems.length > 0 && (
-                <div className="mt-3 p-3 bg-red-50 rounded-lg">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Costos Tarifa:</span>
-                    <span className="font-medium text-red-700">{formatCurrency(totals.egresosTarifa)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Costos Extra:</span>
-                    <span className="font-medium text-amber-600">{formatCurrency(totals.egresosExtra)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold border-t border-red-200 mt-2 pt-2">
-                    <span className="text-red-800">Total Costos:</span>
-                    <span className="text-red-700">{formatCurrency(totals.totalEgresos)}</span>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Profitability Summary */}
-          {(incomeItems.length > 0 || expenseItems.length > 0) && (
+          {selectedRoute && totals.totalCostos > 0 && (
             <Card className="bg-gradient-to-r from-slate-800 to-slate-700 border-0 shadow-lg">
               <CardHeader className="pb-2">
                 <CardTitle className="text-white flex items-center gap-2">
                   <Calculator className="w-5 h-5" />
-                  Resumen de Utilidad
+                  Resumen de Cotización
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  {/* Utilidad Tarifa */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Total Costos */}
                   <div className="bg-white/10 rounded-lg p-4">
-                    <p className="text-slate-300 text-xs mb-1">Utilidad Tarifa</p>
-                    <p className={`text-2xl font-bold ${totals.utilidadTarifa >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {formatCurrency(totals.utilidadTarifa)}
+                    <p className="text-slate-300 text-xs mb-1">Total Costos</p>
+                    <p className="text-2xl font-bold text-red-400">
+                      {formatCurrency(totals.totalCostos)}
                     </p>
-                    <p className="text-slate-400 text-xs mt-1">Margen: {totals.margenTarifa.toFixed(1)}%</p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Tarifa: {formatCurrency(totals.costoTarifa)} + Extras: {formatCurrency(totals.costosExtras)}
+                    </p>
                   </div>
                   
-                  {/* Utilidad Extra */}
+                  {/* Precio de Venta */}
                   <div className="bg-white/10 rounded-lg p-4">
-                    <p className="text-slate-300 text-xs mb-1">Utilidad Extras</p>
-                    <p className={`text-2xl font-bold ${totals.utilidadExtra >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
-                      {formatCurrency(totals.utilidadExtra)}
+                    <p className="text-slate-300 text-xs mb-1">Precio de Venta</p>
+                    <p className="text-2xl font-bold text-white">
+                      {formatCurrency(totals.precioVentaTotal)}
                     </p>
-                    <p className="text-slate-400 text-xs mt-1">Margen: {totals.margenExtra.toFixed(1)}%</p>
+                    <p className="text-slate-400 text-xs mt-1">Con margen del {selectedMargin}%</p>
                   </div>
                   
-                  {/* Utilidad Total */}
+                  {/* Utilidad */}
                   <div className="bg-white/10 rounded-lg p-4">
-                    <p className="text-slate-300 text-xs mb-1">Utilidad Total</p>
-                    <p className={`text-2xl font-bold ${totals.utilidadTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <p className="text-slate-300 text-xs mb-1">Utilidad</p>
+                    <p className="text-2xl font-bold text-emerald-400">
                       {formatCurrency(totals.utilidadTotal)}
                     </p>
-                    <p className="text-slate-400 text-xs mt-1">Margen: {totals.margenTotal.toFixed(1)}%</p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Tarifa: {formatCurrency(totals.utilidadTarifa)} + Extras: {formatCurrency(totals.utilidadExtras)}
+                    </p>
                   </div>
                   
                   {/* Total con IVA */}
@@ -751,11 +667,45 @@ export default function OpsQuotes() {
                     <p className="text-blue-200 text-xs mt-1">IVA: {formatCurrency(totals.iva)}</p>
                   </div>
                 </div>
+
+                {/* Breakdown by type */}
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-slate-400 text-xs mb-2">Desglose Tarifa</p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Costo:</span>
+                      <span className="text-red-400">{formatCurrency(totals.costoTarifa)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Venta:</span>
+                      <span className="text-white">{formatCurrency(totals.precioVentaTarifa)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-medium border-t border-white/10 mt-1 pt-1">
+                      <span className="text-slate-300">Utilidad:</span>
+                      <span className="text-emerald-400">{formatCurrency(totals.utilidadTarifa)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-3">
+                    <p className="text-slate-400 text-xs mb-2">Desglose Extras</p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Costo:</span>
+                      <span className="text-amber-400">{formatCurrency(totals.costosExtras)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-300">Venta:</span>
+                      <span className="text-white">{formatCurrency(totals.precioVentaExtras)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-medium border-t border-white/10 mt-1 pt-1">
+                      <span className="text-slate-300">Utilidad:</span>
+                      <span className="text-emerald-400">{formatCurrency(totals.utilidadExtras)}</span>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Notes */}
+          {/* Notes & Actions */}
           <Card className="bg-white border-slate-200 shadow-sm">
             <CardContent className="pt-6">
               <label className="text-sm text-slate-600 mb-1 block">Notas</label>
@@ -771,7 +721,12 @@ export default function OpsQuotes() {
                 <Button variant="outline" onClick={() => { setShowNewQuote(false); resetForm(); }}>
                   Cancelar
                 </Button>
-                <Button onClick={handleCreateQuote} className="bg-blue-600 hover:bg-blue-700" data-testid="create-quote-btn">
+                <Button 
+                  onClick={handleCreateQuote} 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  data-testid="create-quote-btn"
+                  disabled={!selectedRoute || !clientName}
+                >
                   <Check className="w-4 h-4 mr-2" />
                   Crear Cotización
                 </Button>
@@ -781,169 +736,34 @@ export default function OpsQuotes() {
         </div>
       )}
 
-      {/* Income Selector Modal */}
-      {showIncomeSelector && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-emerald-50">
-              <h3 className="font-semibold text-emerald-800">Agregar Concepto de Ingreso</h3>
-              <button onClick={() => setShowIncomeSelector(false)}>
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[50vh]">
-              {/* Tarifa concepts */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                  <Tag className="w-4 h-4" /> Conceptos de Tarifa
-                </h4>
-                <div className="grid gap-2">
-                  {INCOME_CONCEPTS.filter(c => c.category === 'tarifa').map((concept) => (
-                    <div
-                      key={concept.id}
-                      onClick={() => addIncomeItem(concept)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{concept.name}</span>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Tarifa</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Extra concepts */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Conceptos Extra
-                </h4>
-                <div className="grid gap-2">
-                  {INCOME_CONCEPTS.filter(c => c.category === 'extra').map((concept) => (
-                    <div
-                      key={concept.id}
-                      onClick={() => addIncomeItem(concept)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{concept.name}</span>
-                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Custom concept */}
-              <div className="pt-4 border-t border-slate-200">
-                <h4 className="text-sm font-medium text-slate-500 mb-2">Concepto personalizado</h4>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nombre del concepto..."
-                    value={customIncomeName}
-                    onChange={(e) => setCustomIncomeName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => customIncomeName && addIncomeItem(null, true)}
-                    disabled={!customIncomeName}
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                  >
-                    Agregar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Expense Selector Modal */}
-      {showExpenseSelector && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-red-50">
-              <h3 className="font-semibold text-red-800">Agregar Concepto de Costo</h3>
-              <button onClick={() => setShowExpenseSelector(false)}>
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[50vh]">
-              {/* Tarifa concepts */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                  <Tag className="w-4 h-4" /> Costos de Tarifa
-                </h4>
-                <div className="grid gap-2">
-                  {EXPENSE_CONCEPTS.filter(c => c.category === 'tarifa').map((concept) => (
-                    <div
-                      key={concept.id}
-                      onClick={() => addExpenseItem(concept)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-red-50 hover:border-red-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{concept.name}</span>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Tarifa</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Extra concepts */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                  <Plus className="w-4 h-4" /> Costos Extra
-                </h4>
-                <div className="grid gap-2">
-                  {EXPENSE_CONCEPTS.filter(c => c.category === 'extra').map((concept) => (
-                    <div
-                      key={concept.id}
-                      onClick={() => addExpenseItem(concept)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{concept.name}</span>
-                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Custom concept */}
-              <div className="pt-4 border-t border-slate-200">
-                <h4 className="text-sm font-medium text-slate-500 mb-2">Concepto personalizado</h4>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nombre del costo..."
-                    value={customExpenseName}
-                    onChange={(e) => setCustomExpenseName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => customExpenseName && addExpenseItem(null, true)}
-                    disabled={!customExpenseName}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Agregar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Route Selector Modal */}
       {showRouteSelector && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="font-semibold text-slate-800">Seleccionar Ruta</h3>
+              <h3 className="font-semibold text-slate-800">Seleccionar Ruta desde Pricing</h3>
               <button onClick={() => setShowRouteSelector(false)}>
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto max-h-[60vh]">
+            <div className="p-4 border-b border-slate-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar por origen, destino o modo de transporte..."
+                  value={routeSearchQuery}
+                  onChange={(e) => setRouteSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[55vh]">
               <div className="grid gap-2">
-                {routes.slice(0, 30).map((route) => (
+                {filteredRoutes.slice(0, 50).map((route) => (
                   <div
                     key={route.id}
                     onClick={() => selectRoute(route)}
-                    className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors"
+                    className="p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors"
                   >
                     <div className="flex justify-between items-center">
                       <div>
@@ -951,12 +771,65 @@ export default function OpsQuotes() {
                         <p className="text-sm text-slate-500">{route.transport_mode} • {route.container_size} • {route.transit_days} días</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-bold text-blue-600">{formatCurrency(route.suggested_price)}</p>
-                        <p className="text-xs text-slate-400">Costo: {formatCurrency(route.base_cost)}</p>
+                        <p className="text-xs text-slate-400">Costo Base</p>
+                        <p className="text-lg font-bold text-blue-600">{formatCurrency(route.base_cost)}</p>
                       </div>
                     </div>
                   </div>
                 ))}
+                {filteredRoutes.length === 0 && (
+                  <div className="p-8 text-center text-slate-500">
+                    No se encontraron rutas
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extra Cost Selector Modal */}
+      {showExtraCostSelector && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[70vh] overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-red-50">
+              <h3 className="font-semibold text-red-800">Agregar Costo Extra</h3>
+              <button onClick={() => setShowExtraCostSelector(false)}>
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[45vh]">
+              <div className="grid gap-2">
+                {EXTRA_COST_CONCEPTS.map((concept) => (
+                  <div
+                    key={concept.id}
+                    onClick={() => addExtraCost(concept)}
+                    className="p-3 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-colors flex justify-between items-center"
+                  >
+                    <span className="text-slate-700">{concept.name}</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Custom concept */}
+              <div className="pt-4 mt-4 border-t border-slate-200">
+                <p className="text-sm font-medium text-slate-500 mb-2">Costo personalizado</p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nombre del costo..."
+                    value={customCostName}
+                    onChange={(e) => setCustomCostName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={() => customCostName && addExtraCost(null, true)}
+                    disabled={!customCostName}
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    Agregar
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -979,21 +852,25 @@ export default function OpsQuotes() {
               </div>
             </div>
 
-            <div className="mb-8 p-4 bg-slate-50 rounded-lg">
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg">
               <h3 className="font-semibold mb-2">Cliente</h3>
               <p className="text-slate-800">{selectedQuote.client_name}</p>
               {selectedQuote.client_email && <p className="text-slate-600 text-sm">{selectedQuote.client_email}</p>}
-              {selectedQuote.client_phone && <p className="text-slate-600 text-sm">{selectedQuote.client_phone}</p>}
             </div>
 
-            <table className="w-full mb-8">
+            {selectedQuote.route_description && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <h3 className="font-semibold mb-1">Ruta</h3>
+                <p className="text-slate-800">{selectedQuote.route_description}</p>
+              </div>
+            )}
+
+            <table className="w-full mb-6">
               <thead>
                 <tr className="border-b-2 border-slate-200">
-                  <th className="text-left py-2">Descripción</th>
+                  <th className="text-left py-2">Concepto</th>
                   <th className="text-center py-2 w-20">Tipo</th>
-                  <th className="text-center py-2 w-20">Cant.</th>
-                  <th className="text-right py-2 w-32">P. Unit.</th>
-                  <th className="text-right py-2 w-32">Total</th>
+                  <th className="text-right py-2 w-32">Importe</th>
                 </tr>
               </thead>
               <tbody>
@@ -1001,9 +878,7 @@ export default function OpsQuotes() {
                   <tr key={i} className="border-b border-slate-100">
                     <td className="py-2">{item.description}</td>
                     <td className="py-2 text-center text-xs">{item.category === 'tarifa' ? 'Tarifa' : 'Extra'}</td>
-                    <td className="py-2 text-center">{item.quantity}</td>
-                    <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
-                    <td className="py-2 text-right">{formatCurrency(item.total_price)}</td>
+                    <td className="py-2 text-right">{formatCurrency(item.unit_price || item.total_price)}</td>
                   </tr>
                 ))}
               </tbody>
