@@ -771,8 +771,8 @@ export default function OpsQuotes() {
                         <p className="text-sm text-slate-500">{route.transport_mode} • {route.container_size} • {route.transit_days} días</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-slate-400">Costo Base</p>
-                        <p className="text-lg font-bold text-blue-600">{formatCurrency(route.base_cost)}</p>
+                        <p className="text-xs text-slate-400">Costo Promedio</p>
+                        <p className="text-lg font-bold text-blue-600">{formatCurrency(route.avg_cost || route.min_cost || 0)}</p>
                       </div>
                     </div>
                   </div>
