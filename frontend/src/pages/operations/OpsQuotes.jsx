@@ -480,8 +480,8 @@ export default function OpsQuotes() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-slate-500">Costo Base (All-In)</p>
-                      <p className="text-xl font-bold text-blue-600">{formatCurrency(selectedRoute.base_cost)}</p>
+                      <p className="text-sm text-slate-500">Costo Promedio (All-In)</p>
+                      <p className="text-xl font-bold text-blue-600">{formatCurrency(selectedRoute.avg_cost || selectedRoute.min_cost)}</p>
                     </div>
                   </div>
                 </div>
