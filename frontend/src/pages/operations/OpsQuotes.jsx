@@ -118,8 +118,8 @@ export default function OpsQuotes() {
   // Select route from pricing
   const selectRoute = (route) => {
     setSelectedRoute(route);
-    // Use base_cost as the all-in tariff
-    setTarifaAllIn(route.base_cost || 0);
+    // Use avg_cost as the all-in tariff (from supplier quotes average)
+    setTarifaAllIn(route.avg_cost || route.min_cost || 0);
     setShowRouteSelector(false);
     toast.success('Ruta seleccionada');
   };
