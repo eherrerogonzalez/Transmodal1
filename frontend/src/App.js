@@ -80,6 +80,16 @@ function App() {
             <Route index element={<Navigate to="/wms/dashboard" replace />} />
           </Route>
           
+          {/* Warehouse Operator Portal */}
+          <Route path="/warehouse-op" element={<WarehouseOperatorLayout />}>
+            <Route path="dashboard" element={<WarehouseOperatorDashboard />} />
+            <Route path="tasks" element={<WarehouseOperatorTasks />} />
+            <Route path="picking" element={<WarehouseOperatorTasks />} />
+            <Route path="putaway" element={<WarehouseOperatorTasks />} />
+            <Route path="scanner" element={<WarehouseOperatorDashboard />} />
+            <Route index element={<Navigate to="/warehouse-op/dashboard" replace />} />
+          </Route>
+          
           {/* Transport Portal */}
           <Route path="/transport" element={<TransportLayout />}>
             <Route path="dashboard" element={<TransportDashboard />} />
