@@ -515,14 +515,18 @@ export default function OpsPricing() {
                     </tr>
                   </thead>
                   <tbody>
-                    {routes.slice(0, 30).map((route) => {
+                    {routes.slice(0, 50).map((route) => {
                       const Icon = MODE_ICONS[route.transport_mode] || Ship;
                       const isExpanded = expandedRoutes[route.id];
+                      const isIMO = route.container_type === 'imo';
+                      const hasReturn = route.notes?.includes('CON retorno');
                       
                       return (
                         <React.Fragment key={route.id}>
                           {/* Main Row */}
-                          <tr className="border-b border-slate-100 hover:bg-blue-50/30 cursor-pointer" onClick={() => toggleRouteExpand(route.id)}>
+                          <tr className={`border-b border-slate-100 cursor-pointer ${
+                            isIMO ? 'bg-amber-50/50 hover:bg-amber-50' : 'hover:bg-blue-50/30'
+                          }`} onClick={() => toggleRouteExpand(route.id)}>
                             <td className="py-3 px-2">
                               <button className="p-1 hover:bg-slate-200 rounded">
                                 {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -530,16 +534,27 @@ export default function OpsPricing() {
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-blue-100 rounded">
-                                  <Icon className="w-4 h-4 text-blue-600" />
+                                <div className={`p-1.5 rounded ${isIMO ? 'bg-amber-100' : 'bg-blue-100'}`}>
+                                  <Icon className={`w-4 h-4 ${isIMO ? 'text-amber-600' : 'text-blue-600'}`} />
                                 </div>
-                                <span className="text-xs text-slate-600">{MODE_LABELS[route.transport_mode]}</span>
+                                <div className="flex flex-col">
+                                  <span className="text-xs text-slate-600">{MODE_LABELS[route.transport_mode]}</span>
+                                  <div className="flex gap-1 mt-0.5">
+                                    {isIMO && <span className="px-1 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-medium">IMO</span>}
+                                    {hasReturn && <span className="px-1 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">RT</span>}
+                                  </div>
+                                </div>
                               </div>
                             </td>
                             <td className="py-3 px-4">
                               <span className="text-sm font-medium text-slate-700">{route.origin}</span>
                               <span className="text-slate-400 mx-2">→</span>
                               <span className="text-sm font-medium text-slate-700">{route.destination}</span>
+                              {route.notes && (
+                                <p className="text-[10px] text-slate-400 truncate max-w-[200px]" title={route.notes}>
+                                  {route.notes.split('.')[0]}
+                                </p>
+                              )}
                             </td>
                             <td className="py-3 px-4">
                               <span className="px-2 py-1 bg-slate-100 rounded text-xs font-medium text-slate-600">
