@@ -15,13 +15,15 @@ import {
   Star,
   TrendingDown,
   TrendingUp,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
 import api from '../../lib/api';
+import OpsTariffs from './OpsTariffs';
 
 const MODE_ICONS = {
   maritime: Ship,
