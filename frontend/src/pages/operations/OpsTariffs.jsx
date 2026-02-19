@@ -233,7 +233,7 @@ export default function OpsTariffs() {
     toast.success('Servicios de venta generados automáticamente');
   };
 
-  // Save tariff
+  // Save tariff (create or update)
   const handleSaveTariff = async () => {
     if (!selectedRoute) {
       toast.error('Selecciona una ruta');
@@ -267,15 +267,24 @@ export default function OpsTariffs() {
         }))
       };
 
-      const response = await api.post('/ops/pricing/tariffs', tariffData);
+      let response;
+      if (editingTariffId) {
+        // Update existing tariff
+        response = await api.put(`/ops/pricing/tariffs/${editingTariffId}`, tariffData);
+        setTariffs(tariffs.map(t => t.id === editingTariffId ? response.data.tariff : t));
+        toast.success('Tarifa actualizada exitosamente');
+      } else {
+        // Create new tariff
+        response = await api.post('/ops/pricing/tariffs', tariffData);
+        setTariffs([response.data.tariff, ...tariffs]);
+        toast.success('Tarifa pre-aprobada creada exitosamente');
+      }
       
-      setTariffs([response.data.tariff, ...tariffs]);
       resetForm();
       setShowCreateForm(false);
-      toast.success('Tarifa pre-aprobada creada exitosamente');
     } catch (error) {
       console.error(error);
-      toast.error('Error al crear tarifa');
+      toast.error(editingTariffId ? 'Error al actualizar tarifa' : 'Error al crear tarifa');
     }
   };
 
