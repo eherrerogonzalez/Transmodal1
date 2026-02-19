@@ -37,6 +37,11 @@ import WmsInventory from "./pages/wms/WmsInventory";
 import WmsLocations from "./pages/wms/WmsLocations";
 import WmsMovements from "./pages/wms/WmsMovements";
 
+// Warehouse Operator Portal
+import WarehouseOperatorLayout from "./pages/warehouse-operator/WarehouseOperatorLayout";
+import WarehouseOperatorDashboard from "./pages/warehouse-operator/WarehouseOperatorDashboard";
+import WarehouseOperatorTasks from "./pages/warehouse-operator/WarehouseOperatorTasks";
+
 // Transport Portal
 import TransportLayout from "./pages/transport/TransportLayout";
 import TransportDashboard from "./pages/transport/TransportDashboard";
