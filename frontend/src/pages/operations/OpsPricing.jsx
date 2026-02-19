@@ -150,7 +150,7 @@ export default function OpsPricing() {
   };
 
   const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
   };
 
   const clearFilters = () => {
