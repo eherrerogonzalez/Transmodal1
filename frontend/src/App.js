@@ -29,20 +29,22 @@ import OpsPricing from "./pages/operations/OpsPricing";
 import OpsQuotes from "./pages/operations/OpsQuotes";
 import OpsSuppliers from "./pages/operations/OpsSuppliers";
 import OpsClients from "./pages/operations/OpsClients";
-
-// WMS Portal
-import WmsLayout from "./pages/wms/WmsLayout";
-import WmsDashboard from "./pages/wms/WmsDashboard";
-import WmsInventory from "./pages/wms/WmsInventory";
-import WmsLocations from "./pages/wms/WmsLocations";
-import WmsMovements from "./pages/wms/WmsMovements";
+// Operations - WMS
+import OpsWmsInventory from "./pages/operations/OpsWmsInventory";
+import OpsWmsLocations from "./pages/operations/OpsWmsLocations";
+import OpsWmsMovements from "./pages/operations/OpsWmsMovements";
+// Operations - TMS
+import OpsTmsUnits from "./pages/operations/OpsTmsUnits";
+import OpsTmsRoutes from "./pages/operations/OpsTmsRoutes";
+import OpsTmsTracking from "./pages/operations/OpsTmsTracking";
+import OpsTmsFuel from "./pages/operations/OpsTmsFuel";
 
 // Warehouse Operator Portal
 import WarehouseOperatorLayout from "./pages/warehouse-operator/WarehouseOperatorLayout";
 import WarehouseOperatorDashboard from "./pages/warehouse-operator/WarehouseOperatorDashboard";
 import WarehouseOperatorTasks from "./pages/warehouse-operator/WarehouseOperatorTasks";
 
-// Transport Portal
+// Transport Operator Portal
 import TransportLayout from "./pages/transport/TransportLayout";
 import TransportDashboard from "./pages/transport/TransportDashboard";
 
@@ -57,30 +59,29 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           
-          {/* Operations Portal */}
+          {/* Operations Portal (includes WMS + TMS) */}
           <Route path="/ops/login" element={<OpsLogin />} />
           <Route path="/ops" element={<OpsLayout />}>
             <Route path="dashboard" element={<OpsDashboard />} />
-            <Route path="containers" element={<OpsContainers />} />
             <Route path="pricing" element={<OpsPricing />} />
             <Route path="quotes" element={<OpsQuotes />} />
+            {/* WMS Routes */}
+            <Route path="wms/inventory" element={<OpsWmsInventory />} />
+            <Route path="wms/locations" element={<OpsWmsLocations />} />
+            <Route path="wms/movements" element={<OpsWmsMovements />} />
+            {/* TMS Routes */}
+            <Route path="tms/units" element={<OpsTmsUnits />} />
+            <Route path="tms/routes" element={<OpsTmsRoutes />} />
+            <Route path="tms/tracking" element={<OpsTmsTracking />} />
+            <Route path="tms/fuel" element={<OpsTmsFuel />} />
+            {/* Admin */}
+            <Route path="containers" element={<OpsContainers />} />
             <Route path="suppliers" element={<OpsSuppliers />} />
             <Route path="clients" element={<OpsClients />} />
             <Route index element={<Navigate to="/ops/dashboard" replace />} />
           </Route>
           
-          {/* WMS Portal */}
-          <Route path="/wms" element={<WmsLayout />}>
-            <Route path="dashboard" element={<WmsDashboard />} />
-            <Route path="inventory" element={<WmsInventory />} />
-            <Route path="locations" element={<WmsLocations />} />
-            <Route path="movements" element={<WmsMovements />} />
-            <Route path="tasks" element={<WmsDashboard />} />
-            <Route path="reports" element={<WmsDashboard />} />
-            <Route index element={<Navigate to="/wms/dashboard" replace />} />
-          </Route>
-          
-          {/* Warehouse Operator Portal */}
+          {/* Warehouse Operator Portal (Montacargas) */}
           <Route path="/warehouse-op" element={<WarehouseOperatorLayout />}>
             <Route path="dashboard" element={<WarehouseOperatorDashboard />} />
             <Route path="tasks" element={<WarehouseOperatorTasks />} />
@@ -90,7 +91,7 @@ function App() {
             <Route index element={<Navigate to="/warehouse-op/dashboard" replace />} />
           </Route>
           
-          {/* Transport Portal */}
+          {/* Transport Operator Portal (Camión) */}
           <Route path="/transport" element={<TransportLayout />}>
             <Route path="dashboard" element={<TransportDashboard />} />
             <Route path="units" element={<TransportDashboard />} />
