@@ -3701,8 +3701,8 @@ class SupplierTariff(BaseModel):
     validity_end: str = ""
     notes: Optional[str] = None
 
-class Supplier(BaseModel):
-    """Proveedor con sus tarifas"""
+class PurchaseSupplier(BaseModel):
+    """Proveedor en el tarifario de compras"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     category: str
