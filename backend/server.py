@@ -5308,6 +5308,148 @@ async def get_container_profitability(container_id: str, user: dict = Depends(ve
     
     return container
 
+# ==================== TARIFARIO DE COMPRAS (PROVEEDORES) ENDPOINTS ====================
+
+@api_router.get("/ops/purchases/categories")
+async def get_supplier_categories(user: dict = Depends(verify_token)):
+    """Obtener categorías de proveedores"""
+    return {"categories": SUPPLIER_CATEGORIES}
+
+@api_router.get("/ops/purchases/suppliers")
+async def get_all_suppliers(
+    category: str = None,
+    user: dict = Depends(verify_token)
+):
+    """Obtener todos los proveedores con sus tarifas"""
+    suppliers = get_suppliers()
+    
+    if category:
+        suppliers = [s for s in suppliers if s.category == category]
+    
+    # Contar tarifas por categoría
+    categories_count = {}
+    for s in get_suppliers():
+        if s.category not in categories_count:
+            categories_count[s.category] = {"count": 0, "tariffs": 0}
+        categories_count[s.category]["count"] += 1
+        categories_count[s.category]["tariffs"] += len(s.tariffs)
+    
+    return {
+        "total": len(suppliers),
+        "suppliers": [s.model_dump() for s in suppliers],
+        "categories_summary": categories_count
+    }
+
+@api_router.get("/ops/purchases/suppliers/{supplier_id}")
+async def get_supplier_detail(supplier_id: str, user: dict = Depends(verify_token)):
+    """Obtener detalle de un proveedor"""
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    return supplier.model_dump()
+
+@api_router.post("/ops/purchases/suppliers")
+async def create_supplier(data: dict, user: dict = Depends(verify_token)):
+    """Crear un nuevo proveedor"""
+    global _suppliers_cache
+    suppliers = get_suppliers()
+    
+    new_supplier = Supplier(
+        name=data["name"],
+        category=data["category"],
+        contact_name=data.get("contact_name"),
+        contact_email=data.get("contact_email"),
+        contact_phone=data.get("contact_phone"),
+        address=data.get("address"),
+        tariffs=[]
+    )
+    
+    suppliers.append(new_supplier)
+    _suppliers_cache = suppliers
+    
+    return {"success": True, "supplier": new_supplier.model_dump()}
+
+@api_router.post("/ops/purchases/suppliers/{supplier_id}/tariffs")
+async def add_supplier_tariff(supplier_id: str, data: dict, user: dict = Depends(verify_token)):
+    """Agregar tarifa a un proveedor"""
+    global _suppliers_cache
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    validity_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    validity_end = (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+    
+    new_tariff = SupplierTariff(
+        supplier_id=supplier_id,
+        supplier_name=supplier.name,
+        category=supplier.category,
+        service_name=data["service_name"],
+        origin=data.get("origin"),
+        destination=data.get("destination"),
+        container_size=data.get("container_size"),
+        unit=data.get("unit", "por_contenedor"),
+        cost=data["cost"],
+        currency=data.get("currency", "MXN"),
+        includes_return=data.get("includes_return", False),
+        is_imo=data.get("is_imo", False),
+        transit_days=data.get("transit_days"),
+        validity_start=data.get("validity_start", validity_start),
+        validity_end=data.get("validity_end", validity_end),
+        notes=data.get("notes")
+    )
+    
+    supplier.tariffs.append(new_tariff)
+    _suppliers_cache = suppliers
+    
+    return {"success": True, "tariff": new_tariff.model_dump()}
+
+@api_router.put("/ops/purchases/suppliers/{supplier_id}/tariffs/{tariff_id}")
+async def update_supplier_tariff(supplier_id: str, tariff_id: str, data: dict, user: dict = Depends(verify_token)):
+    """Actualizar tarifa de un proveedor"""
+    global _suppliers_cache
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    tariff = next((t for t in supplier.tariffs if t.id == tariff_id), None)
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Tarifa no encontrada")
+    
+    # Actualizar campos
+    for key, value in data.items():
+        if hasattr(tariff, key):
+            setattr(tariff, key, value)
+    
+    _suppliers_cache = suppliers
+    return {"success": True, "tariff": tariff.model_dump()}
+
+@api_router.delete("/ops/purchases/suppliers/{supplier_id}/tariffs/{tariff_id}")
+async def delete_supplier_tariff(supplier_id: str, tariff_id: str, user: dict = Depends(verify_token)):
+    """Eliminar tarifa de un proveedor"""
+    global _suppliers_cache
+    suppliers = get_suppliers()
+    supplier = next((s for s in suppliers if s.id == supplier_id), None)
+    
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+    
+    original_len = len(supplier.tariffs)
+    supplier.tariffs = [t for t in supplier.tariffs if t.id != tariff_id]
+    
+    if len(supplier.tariffs) == original_len:
+        raise HTTPException(status_code=404, detail="Tarifa no encontrada")
+    
+    _suppliers_cache = suppliers
+    return {"success": True, "message": "Tarifa eliminada"}
+
 # ==================== PRICING/QUOTES ENDPOINTS ====================
 
 @api_router.get("/ops/pricing/routes")
