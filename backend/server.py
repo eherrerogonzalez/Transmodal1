@@ -5387,6 +5387,21 @@ async def update_tariff(tariff_id: str, tariff_data: dict, user: dict = Depends(
     _preapproved_tariffs_cache = tariffs
     return {"success": True, "tariff": tariff.model_dump()}
 
+@api_router.delete("/ops/pricing/tariffs/{tariff_id}")
+async def delete_tariff(tariff_id: str, user: dict = Depends(verify_token)):
+    """Eliminar una tarifa pre-aprobada"""
+    global _preapproved_tariffs_cache
+    tariffs = get_preapproved_tariffs()
+    
+    original_len = len(tariffs)
+    tariffs = [t for t in tariffs if t.id != tariff_id]
+    
+    if len(tariffs) == original_len:
+        raise HTTPException(status_code=404, detail="Tarifa no encontrada")
+    
+    _preapproved_tariffs_cache = tariffs
+    return {"success": True, "message": "Tarifa eliminada"}
+
 @api_router.post("/ops/quotes")
 async def create_quote(quote_data: dict, user: dict = Depends(verify_token)):
     """Crear nueva cotización"""
