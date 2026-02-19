@@ -686,7 +686,7 @@ export default function OpsTariffs() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-xs text-slate-400">Costo</p>
                             <p className="font-medium text-red-600">{formatCurrency(tariff.total_cost)}</p>
@@ -702,6 +702,30 @@ export default function OpsTariffs() {
                             }`}>
                               {tariff.margin_percent}%
                             </span>
+                          </div>
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-1 border-l border-slate-200 pl-4 ml-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditTariff(tariff); }}
+                              className="p-2 hover:bg-amber-100 rounded-lg text-amber-600 hover:text-amber-700 transition-colors"
+                              title="Editar tarifa"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDuplicateTariff(tariff); }}
+                              className="p-2 hover:bg-blue-100 rounded-lg text-blue-600 hover:text-blue-700 transition-colors"
+                              title="Duplicar tarifa"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTariff(tariff.id); }}
+                              className="p-2 hover:bg-red-100 rounded-lg text-red-500 hover:text-red-600 transition-colors"
+                              title="Eliminar tarifa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                           <button onClick={() => toggleTariffExpand(tariff.id)} className="text-slate-400 hover:text-slate-600">
                             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
