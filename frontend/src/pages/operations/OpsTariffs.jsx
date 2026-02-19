@@ -628,11 +628,11 @@ export default function OpsTariffs() {
               </Button>
               <Button 
                 onClick={handleSaveTariff} 
-                className="bg-purple-600 hover:bg-purple-700"
+                className={editingTariffId ? "bg-amber-600 hover:bg-amber-700" : "bg-purple-600 hover:bg-purple-700"}
                 disabled={!selectedRoute || totals.totalCost === 0}
               >
                 <Save className="w-4 h-4 mr-1" />
-                Guardar Tarifa
+                {editingTariffId ? 'Actualizar Tarifa' : 'Guardar Tarifa'}
               </Button>
             </div>
           </CardContent>
