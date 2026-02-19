@@ -5228,6 +5228,34 @@ async def transport_login(request: LoginRequest):
     
     raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
+# ==================== WAREHOUSE OPERATOR ENDPOINTS ====================
+
+MOCK_WAREHOUSE_OPERATOR_USER = {
+    "id": "warehouse_op_001",
+    "username": "operador1",
+    "full_name": "Carlos Mendoza",
+    "email": "operador1@transmodal.com",
+    "user_type": "warehouse_operator"
+}
+
+@api_router.post("/warehouse-op/auth/login")
+async def warehouse_operator_login(request: LoginRequest):
+    """Login para portal de operador de almacén"""
+    valid_users = {
+        "operaciones": {"password": "ops123", "user": MOCK_WAREHOUSE_OPERATOR_USER},
+        "operador1": {"password": "op123", "user": MOCK_WAREHOUSE_OPERATOR_USER},
+        "operador2": {"password": "op123", "user": {**MOCK_WAREHOUSE_OPERATOR_USER, "id": "warehouse_op_002", "username": "operador2", "full_name": "María González"}},
+        "admin": {"password": "admin123", "user": {**MOCK_WAREHOUSE_OPERATOR_USER, "id": "warehouse_op_admin", "username": "admin", "full_name": "Admin Almacén"}}
+    }
+    
+    if request.username in valid_users and request.password == valid_users[request.username]["password"]:
+        return {
+            "token": f"warehouse_op_token_{request.username}_{uuid.uuid4().hex[:8]}",
+            "user": valid_users[request.username]["user"]
+        }
+    
+    raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
 @api_router.get("/ops/dashboard/profitability")
 async def get_profitability_dashboard(
     period_start: str = None,
