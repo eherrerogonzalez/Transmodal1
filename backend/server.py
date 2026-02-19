@@ -4064,7 +4064,7 @@ def reset_operations_cache():
 
 # ==================== TARIFARIO DE COMPRAS (PROVEEDORES) ====================
 
-_suppliers_cache = None
+_purchase_suppliers_cache = None
 
 def generate_suppliers_with_tariffs():
     """Genera el catálogo de proveedores con sus tarifas reales de Transmodal"""
