@@ -674,22 +674,39 @@ export default function OpsTariffs() {
               <div className="grid gap-2">
                 {filteredRoutes.map((route) => {
                   const ModeIcon = MODE_ICONS[route.transport_mode] || Ship;
+                  const isIMO = route.container_type === 'imo';
+                  const hasReturn = route.notes?.includes('CON retorno');
                   return (
                     <div
                       key={route.id}
                       onClick={() => handleSelectRoute(route)}
-                      className="p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all"
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        isIMO 
+                          ? 'border-amber-200 hover:bg-amber-50 hover:border-amber-300' 
+                          : 'border-slate-200 hover:bg-blue-50 hover:border-blue-300'
+                      }`}
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <ModeIcon className="w-5 h-5 text-slate-400" />
                           <div>
-                            <p className="font-medium text-slate-800">{route.origin} → {route.destination}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-slate-800">{route.origin} → {route.destination}</p>
+                              {isIMO && (
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">IMO</span>
+                              )}
+                              {hasReturn && (
+                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">+Retorno</span>
+                              )}
+                            </div>
                             <p className="text-sm text-slate-500">{MODE_LABELS[route.transport_mode]} • {route.container_size} • {route.transit_days} días</p>
+                            {route.notes && (
+                              <p className="text-xs text-slate-400 mt-1">{route.notes.split('.')[0]}</p>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-slate-400">Costo Promedio</p>
+                          <p className="text-xs text-slate-400">Costo</p>
                           <p className="font-bold text-blue-600">{formatCurrency(route.avg_cost || route.min_cost || 0)}</p>
                         </div>
                       </div>
