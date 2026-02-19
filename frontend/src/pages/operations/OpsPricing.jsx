@@ -287,11 +287,33 @@ export default function OpsPricing() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
+      {/* Tabs - Nuevo orden: Compras → Rutas → Tarifas Pre-aprobadas → Servicios */}
+      <div className="flex gap-2 border-b border-slate-200 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('purchases')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'purchases' 
+              ? 'border-emerald-500 text-emerald-600' 
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <ShoppingCart className="w-4 h-4" />
+          Compras (Proveedores)
+        </button>
+        <button
+          onClick={() => setActiveTab('routes')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'routes' 
+              ? 'border-blue-500 text-blue-600' 
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Rutas ({routes.length})
+        </button>
         <button
           onClick={() => setActiveTab('tariffs')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'tariffs' 
               ? 'border-purple-500 text-purple-600' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -301,26 +323,21 @@ export default function OpsPricing() {
           Tarifas Pre-aprobadas
         </button>
         <button
-          onClick={() => setActiveTab('routes')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-            activeTab === 'routes' 
-              ? 'border-blue-500 text-blue-600' 
-              : 'border-transparent text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          Rutas ({routes.length})
-        </button>
-        <button
           onClick={() => setActiveTab('services')}
-          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'services' 
-              ? 'border-blue-500 text-blue-600' 
+              ? 'border-amber-500 text-amber-600' 
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
           Servicios Adicionales ({services.length})
         </button>
       </div>
+
+      {/* Purchases Tab (Tarifario de Compras) */}
+      {activeTab === 'purchases' && (
+        <OpsPurchases />
+      )}
 
       {/* Tariffs Tab */}
       {activeTab === 'tariffs' && (
