@@ -67,9 +67,9 @@ function App() {
           {/* WMS Portal */}
           <Route path="/wms" element={<WmsLayout />}>
             <Route path="dashboard" element={<WmsDashboard />} />
-            <Route path="inventory" element={<WmsDashboard />} />
-            <Route path="locations" element={<WmsDashboard />} />
-            <Route path="movements" element={<WmsDashboard />} />
+            <Route path="inventory" element={<WmsInventory />} />
+            <Route path="locations" element={<WmsLocations />} />
+            <Route path="movements" element={<WmsMovements />} />
             <Route path="tasks" element={<WmsDashboard />} />
             <Route path="reports" element={<WmsDashboard />} />
             <Route index element={<Navigate to="/wms/dashboard" replace />} />
