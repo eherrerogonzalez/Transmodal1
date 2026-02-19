@@ -3707,6 +3707,46 @@ class RoutePrice(BaseModel):
     is_active: bool = True
     notes: Optional[str] = None
 
+class CostComponent(BaseModel):
+    """Componente de costo individual para una tarifa"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    amount: float
+    is_base: bool = False  # True si es la tarifa base principal
+
+class SaleService(BaseModel):
+    """Servicio de venta incluido en la tarifa"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    type: str  # 'tarifa' (incluido) o 'extra' (adicional opcional)
+    amount: float
+
+class PreapprovedTariff(BaseModel):
+    """Tarifa pre-aprobada con costos desglosados y precio de venta"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    route_id: str  # Referencia a la ruta
+    origin: str
+    destination: str
+    transport_mode: str
+    container_size: str
+    # Costos desglosados
+    cost_components: List[CostComponent] = []
+    total_cost: float = 0.0
+    # Margen y precio de venta
+    margin_percent: float = 20.0
+    sale_price: float = 0.0  # Calculado: total_cost / (1 - margin)
+    # Servicios incluidos en la venta (lo que se muestra al cliente)
+    sale_services: List[SaleService] = []
+    total_sale: float = 0.0
+    # Metadata
+    transit_days: int = 0
+    validity_start: str = ""
+    validity_end: str = ""
+    is_active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_by: str = "sistema"
+    notes: Optional[str] = None
+
 class AdditionalService(BaseModel):
     """Servicio adicional para cotizaciones"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
