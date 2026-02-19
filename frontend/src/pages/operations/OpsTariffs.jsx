@@ -415,12 +415,21 @@ export default function OpsTariffs() {
         </Button>
       </div>
 
-      {/* Create Form */}
+      {/* Create/Edit Form */}
       {showCreateForm && (
-        <Card className="bg-white border-purple-200 border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
+        <Card className={`bg-white border-2 shadow-lg ${editingTariffId ? 'border-amber-300' : 'border-purple-200'}`}>
+          <CardHeader className={`bg-gradient-to-r ${editingTariffId ? 'from-amber-50 to-orange-50' : 'from-purple-50 to-blue-50'}`}>
             <div className="flex justify-between items-center">
-              <CardTitle className="text-purple-800">Crear Tarifa Pre-aprobada</CardTitle>
+              <CardTitle className={editingTariffId ? 'text-amber-800' : 'text-purple-800'}>
+                {editingTariffId ? (
+                  <span className="flex items-center gap-2">
+                    <Pencil className="w-5 h-5" />
+                    Editar Tarifa Pre-aprobada
+                  </span>
+                ) : (
+                  'Crear Tarifa Pre-aprobada'
+                )}
+              </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => { setShowCreateForm(false); resetForm(); }}>
                 <X className="w-4 h-4" />
               </Button>
