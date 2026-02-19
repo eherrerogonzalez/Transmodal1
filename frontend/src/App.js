@@ -33,6 +33,9 @@ import OpsClients from "./pages/operations/OpsClients";
 // WMS Portal
 import WmsLayout from "./pages/wms/WmsLayout";
 import WmsDashboard from "./pages/wms/WmsDashboard";
+import WmsInventory from "./pages/wms/WmsInventory";
+import WmsLocations from "./pages/wms/WmsLocations";
+import WmsMovements from "./pages/wms/WmsMovements";
 
 // Transport Portal
 import TransportLayout from "./pages/transport/TransportLayout";
