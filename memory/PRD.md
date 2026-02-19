@@ -1,242 +1,183 @@
-# Transmodal Client Portal - PRD
+# Transmodal - Product Requirements Document
 
-## Problem Statement
-Aplicación web para clientes de Transmodal para gestión de cadena de suministro:
-- **Objetivo Principal**: Garantizar que el cliente final NUNCA se quede sin producto
-- Flujo: ORIGEN → INBOUND → CEDIS (Almacén) → DISTRIBUCIÓN → CLIENTE FINAL
-- Sistema de confirmación de órdenes (no alertas)
-- Órdenes con múltiples contenedores, cada contenedor con múltiples productos
-- Extracción automática de información de documentos con AI
-- **Chatbot inteligente con acceso a datos en tiempo real, gráficos y reportes**
-- **Gestión de Patio con optimización de movimientos**
+## Original Problem Statement
+Portal web integral para Transmodal, empresa de logística. La aplicación está destinada a sus clientes y equipo de operaciones interno.
+
+### Requerimientos del Producto:
+- **Portal de Cliente**: Dashboard con KPIs, gestión de pedidos y seguimiento de contenedores.
+- **Logística e IA**:
+  - Módulos para pronóstico de llegada de contenedores y gestión de inventarios.
+  - Función de IA usando Claude para extraer detalles de pedidos de documentos cargados.
+  - Chatbot de IA para consultar datos en tiempo real.
+- **Gestión de Patio**: Módulo con cuadrícula visual del patio de contenedores y algoritmo de optimización.
+- **Portal de Ejecutivo de Operaciones**: Portal interno con:
+  - Dashboard de rentabilidad.
+  - **Gestión de Proveedores y Clientes**: Módulos CRUD completos.
+  - Estructura de precios de tres niveles:
+    1. **Tarifario de Compras**: Catálogo maestro de tarifas por tipo de proveedor (ferrocarril, terminales portuarias, transportistas).
+    2. **Tarifario de Pricing**: Costos agregados por ruta (derivados de las tarifas de compra).
+    3. **Tarifas Pre-aprobadas**: Servicios empaquetados creados a partir de las tarifas de pricing, con margen de utilidad definido, para uso del equipo comercial.
+  - **Módulo de Contratos**: El equipo comercial puede seleccionar una o múltiples tarifas pre-aprobadas para generar un contrato de cliente.
+- **Integración ERP**: Objetivo futuro es reemplazar todos los datos mockeados con llamadas API en vivo a su ERP existente.
+
+---
+
+## What's Been Implemented
+
+### Portal de Operaciones (/ops)
+**Fecha: 19 Feb 2026**
+
+#### 1. Login de Operaciones
+- URL: `/ops/login`
+- Credenciales: `operaciones` / `ops123`
+- Autenticación con tokens mock
+
+#### 2. Dashboard de Rentabilidad
+- KPIs: Ingresos Totales, Costos Totales, Utilidad, Margen
+- Gráficos: Tendencia Mensual, Rentabilidad por Cliente
+- Listas: Más Rentables, Menos Rentables
+
+#### 3. Módulo de Pricing (`/ops/pricing`)
+**Tabs implementados:**
+
+##### a) Compras (Proveedores)
+- 7 proveedores configurados con 40 tarifas
+- Proveedores: Ferromex, ICAVE Veracruz, CONTECON Manzanillo, APM Terminals Lázaro Cárdenas, Transmodal SPF, Transmodal Distribución, VEREX Transmodal
+- Filtros por tipo de proveedor
+
+##### b) Rutas (42 rutas)
+- Rutas reales de Veracruz, Manzanillo, Lázaro Cárdenas a CDMX
+- Información de costo (min/prom/max), precio venta, margen
+- Incluye rutas IMO y con retorno
+- Filtros por origen, destino, modo, tamaño de contenedor
+
+##### c) Tarifas Pre-aprobadas
+- CRUD completo (Crear, Editar, Duplicar, Eliminar)
+- Selección de ruta base del pricing
+- Definición de costos con templates predefinidos
+- Selección de margen (30%, 25%, 20%, 15%)
+- Generación automática de servicios de venta
+- Resumen con cálculo de utilidad y margen real
+
+##### d) Servicios Adicionales (12 servicios)
+- Catálogo de servicios adicionales
+- Costo base y precio sugerido
+
+#### 4. Módulo de Contratos (`/ops/quotes`)
+- Formulario de datos del cliente (Nombre, RFC, Email, Teléfono)
+- Selección de vigencia (30, 60, 90, 180, 365 días)
+- Modal de selección múltiple de tarifas pre-aprobadas
+- Resumen del contrato (tarifas incluidas, costo total, precio venta, utilidad, margen)
+- Notas/condiciones especiales
+- Lista de contratos registrados con filtros
+
+---
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind CSS + Shadcn UI + Recharts
-- **Backend**: FastAPI (Python) con endpoints mock + AI integrations
-- **Database**: MongoDB
-- **AI**: Claude Sonnet 4.5 vía Emergent Integrations
-- **Auth**: Token JWT simulado
 
-## Core Features Implemented ✅
+### Tech Stack
+- **Frontend**: React + Tailwind CSS + Shadcn UI + React Router
+- **Backend**: FastAPI (Python)
+- **Database**: MongoDB (conexión configurada pero datos mockeados en memoria)
 
-### 1. Sistema de Confirmación de Órdenes (`/confirmations`)
-- Pedidos a Origen: Confirmar/Rechazar pedidos al proveedor
-- Distribuciones: Confirmar/Rechazar envíos a clientes finales
-- Bulk actions para confirmar múltiples órdenes
+### File Structure
+```
+/app/
+├── backend/
+│   ├── server.py           # API endpoints (archivo grande, necesita refactoring)
+│   ├── requirements.txt
+│   └── .env
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── ui/         # Shadcn components
+│   │   ├── pages/
+│   │   │   ├── operations/
+│   │   │   │   ├── OpsLayout.jsx
+│   │   │   │   ├── OpsLogin.jsx
+│   │   │   │   ├── OpsDashboard.jsx
+│   │   │   │   ├── OpsPricing.jsx
+│   │   │   │   ├── OpsTariffs.jsx
+│   │   │   │   ├── OpsPurchases.jsx
+│   │   │   │   ├── OpsQuotes.jsx (Contratos)
+│   │   │   │   ├── OpsSuppliers.jsx
+│   │   │   │   └── OpsClients.jsx
+│   │   │   └── ...
+│   │   └── App.js
+│   └── package.json
+└── memory/
+    └── PRD.md
+```
 
-### 2. Órdenes con Múltiples Contenedores (`/orders/new`)
-- Una orden puede tener múltiples contenedores
-- Cada contenedor con: número, tamaño, tipo, sello, peso
-- Cada contenedor con múltiples productos (SKU, nombre, cantidad)
-- **Extracción AI de documentos** (BL, Packing List, Factura)
+### Key API Endpoints
+```
+POST /api/ops/auth/login
+GET  /api/ops/pricing/routes
+GET  /api/ops/pricing/origins
+GET  /api/ops/pricing/destinations
+GET  /api/ops/pricing/services
+GET  /api/ops/pricing/tariffs
+POST /api/ops/pricing/tariffs
+PUT  /api/ops/pricing/tariffs/{id}
+DELETE /api/ops/pricing/tariffs/{id}
+GET  /api/ops/quotes
+POST /api/ops/quotes
+PUT  /api/ops/quotes/{id}/status
+```
 
-### 3. Chatbot Inteligente con Datos en Tiempo Real
-El chatbot ahora puede:
-- **Consultar datos reales** del inventario, órdenes, contenedores
-- **Generar gráficos** (barras, pie charts) dinámicamente
-- **Crear reportes** con tablas de datos específicos
-- Responder sobre clientes finales (Walmart, Costco, etc.)
-- Mostrar productos críticos, rutas de tránsito, acciones pendientes
+---
 
-**Consultas disponibles:**
-- "Dame un reporte del inventario" → Tabla con todos los productos
-- "Gráfico del inventario por marca" → Gráfico de barras
-- "Gráfico del estado del inventario" → Pie chart
-- "Resumen de clientes finales" → Tabla con Walmart, Costco, etc.
-- "Reporte de Walmart" → Detalle específico de un cliente
-- "Productos críticos" → Lista de productos en estado crítico
-- "Pedidos pendientes" → Órdenes pendientes de confirmar
-- "Rutas de tránsito" → Tiempos y costos de cada ruta
+## Known Issues / Bugs
 
-### 4. Planificación de Cadena de Suministro
-- Visibilidad completa: ORIGEN → CEDIS → CLIENTE FINAL
-- Predicciones de cuándo pedir a origen
-- Lead times de rutas marítimas/intermodales
-- Tiempos de distribución por región
+### P0 - Critical
+1. **server.py es demasiado grande** - El archivo tiene 5800+ líneas y causó bugs por colisión de nombres. Necesita refactoring urgente en `/models`, `/routes`, `/services`.
 
-### 5. Inventario de Clientes Finales
-- Walmart, Costco, HEB, Soriana, La Comer, Chedraui
-- Stock por tienda, velocidad de venta, alertas de desabasto
+### P2 - Minor
+1. **Bug recurrente del sidebar** - A veces el click en el sidebar no navega correctamente (recurrencia: 4 sesiones)
+2. **React hydration warnings** - Warnings en consola sobre `<tr>` dentro de `<span>` - no afecta funcionalidad
 
-### 6. Gestión de Patio (`/yard`) - NUEVO ✅ (Feb 2026)
-- **Layout Visual**: Grid del patio con celdas de colores (verde <60%, amarillo 60-80%, rojo >80%)
-- **KPIs**: Total contenedores, llenos, vacíos, % utilización
-- **Búsqueda**: Localizar contenedores por número
-- **Algoritmo de Optimización**: Calcula plan de recuperación minimizando movimientos
-  - Considera fechas de salida de contenedores encima
-  - Muestra secuencia de movimientos paso a paso
-  - Estima tiempo total de operación
-- **Salidas Programadas**: Vista de contenedores con salida hoy y esta semana
-- **Estadísticas**: Por cliente y por tamaño de contenedor
+---
 
-## API Endpoints
+## Pending / Backlog Tasks
 
-### AI Chatbot (con datos reales)
-- `POST /api/ai/chat` - Chatbot con acceso a datos del sistema
-- `POST /api/ai/extract-document` - Extraer info de BL/facturas
+### P0 - High Priority
+- [ ] **Refactorizar server.py** - Dividir en archivos separados por dominio
 
-### Orders & Confirmations
-- `GET /api/orders/pending-origin` - Pedidos pendientes
-- `POST /api/orders/pending-origin/{id}/confirm` - Confirmar
-- `GET /api/orders/pending-distribution` - Distribuciones pendientes
-- `POST /api/orders/create-with-containers` - Crear orden completa
+### P1 - Medium Priority
+- [ ] **Integración ERP** - Conectar con repo privado del usuario
+- [ ] **Exportar contratos a PDF** - Generar PDF descargable de contratos
+- [ ] **Probar página Orders.jsx** - El formulario de pedidos del portal cliente no está testeado
 
-### Supply Chain
-- `GET /api/planning/supply-chain` - Plan integrado
-- `GET /api/inventory/end-clients/{name}` - Inventario por cliente
+### P2 - Low Priority
+- [ ] **Refactorizar OpsPricing.jsx** - Descomponer componente grande
+- [ ] **Integración Google Maps** - Reemplazar placeholder del mapa
+- [ ] **Notificaciones por email** - Alertas para eventos críticos
+- [ ] **UI de extracción de documentos con IA** - Frontend para la funcionalidad de IA
 
-### Yard Management (NUEVO)
-- `GET /api/yard/layout` - Layout completo del patio
-- `GET /api/yard/stats` - Estadísticas (por cliente, tamaño, salidas)
-- `GET /api/yard/search/{container_number}` - Buscar contenedor
-- `POST /api/yard/optimize-retrieval/{container_number}` - Plan óptimo de recuperación
-- `GET /api/yard/containers/by-departure` - Ordenados por fecha de salida
-- `POST /api/yard/reset` - Regenerar datos mock
+---
 
-## Frontend Pages
-- `/dashboard` - Dashboard con KPIs
-- `/confirmations` - Confirmación de órdenes
-- `/orders` - Lista de órdenes
-- `/orders/new` - Nueva orden con AI
-- `/containers` - Lista de contenedores
-- `/map` - Mapa de tracking
-- `/inventory` - Cadena de suministro
-- `/planning` - Planeación
-- `/yard` - **Gestión de Patio** (NUEVO)
-- `/additionals` - Adicionales
-- `/account` - Estado de cuenta
+## Testing Status
 
-## Technical Notes
-- **DATOS MOCK**: Generados en Python con random
-- **AI**: Claude vía Emergent Integrations (EMERGENT_LLM_KEY)
-- Chatbot tiene contexto de datos del sistema en cada request
-- Yard data usa cache global (_yard_cache) que se regenera con reset
+### Última prueba: 19 Feb 2026
+- **Backend**: 100% (18/18 pruebas pasaron)
+- **Frontend**: 100% (todas las funcionalidades solicitadas funcionan)
+- **Archivo de reporte**: `/app/test_reports/iteration_3.json`
 
-## 7. Portal de Operaciones (`/ops/*`) - NUEVO ✅ (Feb 2026)
-Portal separado para ejecutivos de operaciones con:
+### Credenciales de Prueba
+- **Portal de Operaciones**: `/ops`
+  - Usuario: `operaciones`
+  - Password: `ops123`
 
-### Login Separado (`/ops/login`)
-- Credenciales: operaciones / ops123
-- Tipos de usuario diferenciados
+---
 
-### Dashboard de Rentabilidad (`/ops/dashboard`)
-- **KPIs**: Ingresos totales, Costos totales, Utilidad, Margen %
-- **Gráfico de Tendencia Mensual**: Ingresos, Costos y Utilidad por mes
-- **Rentabilidad por Cliente**: Gráfico de barras horizontal
-- **Top 5 Más/Menos Rentables**: Contenedores con mejor y peor margen
-- **Tabla de Rentabilidad por Ruta**: Con totales y márgenes
+## Important Notes
 
-### Vista de Contenedores (`/ops/containers`)
-- Tabla con todos los contenedores y su rentabilidad
-- Filtro por número de contenedor o cliente
-- **Modal de Detalle de Rentabilidad**:
-  - Resumen: Ingresos, Costos, Utilidad, Margen %
-  - Info: Cliente, Origen, Destino, Estado
-  - **Desglose de Costos**: Flete marítimo/ferroviario, maniobras, arrastre, aduanales, estadías, demoras
-  - **Desglose de Ingresos**: Flete cobrado, servicios adicionales
+### Datos Mockeados
+- TODOS los datos están mockeados en memoria
+- Las rutas se generan con `generate_route_prices()` 
+- Las tarifas se almacenan en `_preapproved_tariffs_cache`
+- Los contratos se almacenan en `_quotes_cache`
+- **No hay persistencia en base de datos**
 
-### Módulo de Pricing (`/ops/pricing`) - ACTUALIZADO ✅ (Feb 19, 2026)
-
-#### **Tarifas Reales de Transmodal Implementadas**
-Se reemplazaron los datos mock con las **42 tarifas reales** de Transmodal:
-
-**Veracruz:**
-- FFCC Importación (20'/40'): Sin retorno, con retorno, IMO
-- FFCC Exportación (20'/40')
-- VEREX (FFCC + Inspección): Ferrovalle, TILH
-- SPF (Camión RT): Sencillo, Full
-
-**Manzanillo:**
-- FFCC Importación (20'/40'): Sin retorno, con retorno, IMO
-- FFCC Exportación (20'/40')
-- SPF (Camión RT): Sencillo, Full
-
-**Lázaro Cárdenas:**
-- FFCC Importación (20'/40'): Sin retorno, con retorno
-- FFCC Exportación (20'/40')
-- SPF (Camión RT): Sencillo, Full
-
-**Rutas Nacionales:**
-- FFCC Nacional: Mexicali ↔ CDMX, Cd. Obregón ↔ CDMX
-- Distribución: Guadalajara ↔ México, Monterrey ↔ México, Veracruz → México
-
-**Mejoras en UI:**
-- Etiquetas **+Retorno** (verde) e **IMO** (naranja) para distinguir tipos
-- Notas descriptivas debajo de cada ruta
-- Filas IMO con fondo naranja suave
-- Moneda en **MXN** (Pesos Mexicanos)
-
-### Módulo de Tarifas Pre-aprobadas (`/ops/pricing` > Tab "Tarifas Pre-aprobadas")
-- **Crear paquetes de tarifas** para que el equipo comercial cotice en 1 click
-- Flujo:
-  1. Seleccionar ruta del pricing
-  2. Definir costos (base + adicionales)
-  3. Seleccionar margen (30%, 25%, 20%, 15%)
-  4. Auto-generar servicios de venta o agregar manualmente
-  5. Guardar tarifa pre-aprobada
-- **Resumen en tiempo real**: Total costo, precio venta, utilidad, margen real
-- **Editar tarifas existentes**: Botón de lápiz para modificar y actualizar ✅
-- **Duplicar tarifas**: Botón de copiar para crear variantes rápidamente ✅
-- **Eliminar tarifas**: Botón de basura con confirmación ✅
-
-### Módulo de Cotizaciones (`/ops/quotes`)
-- **Lista de cotizaciones**: Número, Cliente, Estado, Total, Margen, Válida hasta
-- **Nueva Cotización**:
-  - Datos del cliente (nombre, email, teléfono, cliente nuevo)
-  - **Selector de Rutas**: Modal con todas las rutas disponibles
-  - **Selector de Servicios**: Modal con servicios adicionales
-  - Cantidades y precios editables
-  - Cálculo automático: Subtotal, IVA 16%, Total, Margen
-  - Notas adicionales
-- **Exportación a PDF** (via print)
-
-## API Endpoints - Portal de Operaciones (NUEVO)
-
-### Autenticación
-- `POST /api/ops/auth/login` - Login para operaciones
-
-### Dashboard
-- `GET /api/ops/dashboard/profitability` - Dashboard de rentabilidad
-
-### Contenedores
-- `GET /api/ops/containers` - Lista de contenedores con rentabilidad
-- `GET /api/ops/containers/{id}/profitability` - Detalle de rentabilidad
-
-### Pricing
-- `GET /api/ops/pricing/routes` - Rutas con precios (filtrable)
-- `GET /api/ops/pricing/services` - Servicios adicionales
-- `GET /api/ops/pricing/origins` - Orígenes disponibles
-- `GET /api/ops/pricing/destinations` - Destinos disponibles
-- `GET /api/ops/pricing/tariffs` - Tarifas pre-aprobadas
-- `POST /api/ops/pricing/tariffs` - Crear tarifa pre-aprobada
-
-### Cotizaciones
-- `POST /api/ops/quotes` - Crear cotización
-- `GET /api/ops/quotes` - Lista de cotizaciones
-- `GET /api/ops/quotes/{id}` - Detalle de cotización
-- `PUT /api/ops/quotes/{id}/status` - Actualizar estado
-
-## Prioritized Backlog
-
-### P0 (Critical) - DONE ✅
-- Sistema de confirmación de órdenes
-- Órdenes con múltiples contenedores
-- Extracción AI de documentos
-- Chatbot con datos reales, gráficos y reportes
-- **Gestión de Patio con optimización de movimientos**
-- **Tarifas reales de Transmodal implementadas** ✅
-
-### P1 (High Priority) - Pendiente
-- Validar formulario de creación de órdenes (Orders.jsx reescrito pero sin probar)
-- Completar extracción AI de documentos en CreateOrder.jsx (frontend incompleto)
-- Fix bug de navegación del Sidebar (issue recurrente)
-- Probar renderizado de gráficos en Chatbot
-- Exportación de cotizaciones a PDF
-- Integración con ERP (requiere acceso al repo privado de GitHub)
-
-### P2 (Medium Priority)
-- Integración real con ERP vía API
-- Google Maps para tracking real
-- Persistencia de datos en MongoDB
-- Notificaciones push
-- Multi-idioma
+### Idioma del Usuario
+- El usuario prefiere comunicación en **español**
