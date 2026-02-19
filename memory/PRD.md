@@ -175,6 +175,9 @@ Se reemplazaron los datos mock con las **42 tarifas reales** de Transmodal:
   4. Auto-generar servicios de venta o agregar manualmente
   5. Guardar tarifa pre-aprobada
 - **Resumen en tiempo real**: Total costo, precio venta, utilidad, margen real
+- **Editar tarifas existentes**: Botón de lápiz para modificar y actualizar ✅
+- **Duplicar tarifas**: Botón de copiar para crear variantes rápidamente ✅
+- **Eliminar tarifas**: Botón de basura con confirmación ✅
 
 ### Módulo de Cotizaciones (`/ops/quotes`)
 - **Lista de cotizaciones**: Número, Cliente, Estado, Total, Margen, Válida hasta
