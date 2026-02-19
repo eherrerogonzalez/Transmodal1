@@ -287,6 +287,17 @@ export default function OpsPricing() {
       {/* Tabs */}
       <div className="flex gap-2 border-b border-slate-200">
         <button
+          onClick={() => setActiveTab('tariffs')}
+          className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'tariffs' 
+              ? 'border-purple-500 text-purple-600' 
+              : 'border-transparent text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          Tarifas Pre-aprobadas
+        </button>
+        <button
           onClick={() => setActiveTab('routes')}
           className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
             activeTab === 'routes' 
@@ -307,6 +318,11 @@ export default function OpsPricing() {
           Servicios Adicionales ({services.length})
         </button>
       </div>
+
+      {/* Tariffs Tab */}
+      {activeTab === 'tariffs' && (
+        <OpsTariffs />
+      )}
 
       {/* Routes Tab */}
       {activeTab === 'routes' && (
