@@ -6061,7 +6061,7 @@ def get_clients():
 @api_router.get("/ops/suppliers")
 async def list_suppliers(status: str = None, supplier_type: str = None, user: dict = Depends(verify_token)):
     """Listar proveedores"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     if status:
         suppliers = [s for s in suppliers if s.status == status]
     if supplier_type:
@@ -6071,7 +6071,7 @@ async def list_suppliers(status: str = None, supplier_type: str = None, user: di
 @api_router.get("/ops/suppliers/{supplier_id}")
 async def get_supplier(supplier_id: str, user: dict = Depends(verify_token)):
     """Obtener detalle de proveedor"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6080,9 +6080,9 @@ async def get_supplier(supplier_id: str, user: dict = Depends(verify_token)):
 @api_router.post("/ops/suppliers")
 async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token)):
     """Crear nuevo proveedor"""
-    global _purchase_suppliers_cache
+    global _suppliers_cache
     
-    new_supplier = PurchaseSupplier(
+    new_supplier = Supplier(
         company_name=supplier_data.get("company_name"),
         trade_name=supplier_data.get("trade_name"),
         rfc=supplier_data.get("rfc"),
@@ -6103,7 +6103,7 @@ async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token
         status="pending_approval"
     )
     
-    _purchase_suppliers_cache = get_purchase_suppliers()
+    _suppliers_cache = get_suppliers()
     _suppliers_cache.insert(0, new_supplier)
     
     return {"success": True, "supplier": new_supplier}
@@ -6111,7 +6111,7 @@ async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token
 @api_router.put("/ops/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, supplier_data: dict, user: dict = Depends(verify_token)):
     """Actualizar proveedor"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6126,7 +6126,7 @@ async def update_supplier(supplier_id: str, supplier_data: dict, user: dict = De
 @api_router.post("/ops/suppliers/{supplier_id}/documents")
 async def add_supplier_document(supplier_id: str, doc_data: dict, user: dict = Depends(verify_token)):
     """Agregar documento a proveedor"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6145,7 +6145,7 @@ async def add_supplier_document(supplier_id: str, doc_data: dict, user: dict = D
 @api_router.post("/ops/suppliers/{supplier_id}/audits")
 async def add_supplier_audit(supplier_id: str, audit_data: dict, user: dict = Depends(verify_token)):
     """Agregar auditoría a proveedor"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6168,7 +6168,7 @@ async def add_supplier_audit(supplier_id: str, audit_data: dict, user: dict = De
 @api_router.post("/ops/suppliers/{supplier_id}/sign-contract")
 async def sign_supplier_contract(supplier_id: str, user: dict = Depends(verify_token)):
     """Firmar contrato con proveedor"""
-    suppliers = get_purchase_suppliers()
+    suppliers = get_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
