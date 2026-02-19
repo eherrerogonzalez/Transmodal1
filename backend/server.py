@@ -4074,7 +4074,7 @@ def generate_suppliers_with_tariffs():
     
     # ==================== FERROCARRIL ====================
     # Ferromex
-    ferromex = Supplier(
+    ferromex = PurchaseSupplier(
         id="sup_ferromex",
         name="Ferromex",
         category="ferrocarril",
@@ -4170,7 +4170,7 @@ def generate_suppliers_with_tariffs():
     
     # ==================== TERMINALES PORTUARIAS ====================
     # Terminal Veracruz (ICAVE/SSA)
-    terminal_veracruz = Supplier(
+    terminal_veracruz = PurchaseSupplier(
         id="sup_terminal_veracruz",
         name="ICAVE Veracruz",
         category="terminal_portuaria",
@@ -4190,7 +4190,7 @@ def generate_suppliers_with_tariffs():
     suppliers.append(terminal_veracruz)
     
     # Terminal Manzanillo (CONTECON/SSA)
-    terminal_manzanillo = Supplier(
+    terminal_manzanillo = PurchaseSupplier(
         id="sup_terminal_manzanillo",
         name="CONTECON Manzanillo",
         category="terminal_portuaria",
@@ -4210,7 +4210,7 @@ def generate_suppliers_with_tariffs():
     suppliers.append(terminal_manzanillo)
     
     # Terminal Lázaro Cárdenas
-    terminal_lazaro = Supplier(
+    terminal_lazaro = PurchaseSupplier(
         id="sup_terminal_lazaro",
         name="APM Terminals Lázaro Cárdenas",
         category="terminal_portuaria",
@@ -4230,7 +4230,7 @@ def generate_suppliers_with_tariffs():
     suppliers.append(terminal_lazaro)
     
     # ==================== TRANSPORTISTAS (SPF) ====================
-    transmodal_spf = Supplier(
+    transmodal_spf = PurchaseSupplier(
         id="sup_transmodal_spf",
         name="Transmodal SPF",
         category="transportista",
@@ -4269,7 +4269,7 @@ def generate_suppliers_with_tariffs():
     suppliers.append(transmodal_spf)
     
     # ==================== DISTRIBUCIÓN NACIONAL ====================
-    transmodal_dist = Supplier(
+    transmodal_dist = PurchaseSupplier(
         id="sup_transmodal_dist",
         name="Transmodal Distribución",
         category="transportista",
@@ -4301,7 +4301,7 @@ def generate_suppliers_with_tariffs():
     suppliers.append(transmodal_dist)
     
     # ==================== TERMINALES INTERMODALES (VEREX) ====================
-    verex = Supplier(
+    verex = PurchaseSupplier(
         id="sup_verex",
         name="VEREX Transmodal",
         category="terminal_intermodal",
@@ -5357,7 +5357,7 @@ async def create_supplier(data: dict, user: dict = Depends(verify_token)):
     global _suppliers_cache
     suppliers = get_suppliers()
     
-    new_supplier = Supplier(
+    new_supplier = PurchaseSupplier(
         name=data["name"],
         category=data["category"],
         contact_name=data.get("contact_name"),
@@ -6082,7 +6082,7 @@ async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token
     """Crear nuevo proveedor"""
     global _suppliers_cache
     
-    new_supplier = Supplier(
+    new_supplier = PurchaseSupplier(
         company_name=supplier_data.get("company_name"),
         trade_name=supplier_data.get("trade_name"),
         rfc=supplier_data.get("rfc"),
