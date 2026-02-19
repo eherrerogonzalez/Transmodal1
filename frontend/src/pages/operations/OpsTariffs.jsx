@@ -284,6 +284,95 @@ export default function OpsTariffs() {
     setCostComponents([]);
     setMarginPercent(20);
     setSaleServices([]);
+    setEditingTariffId(null);
+  };
+
+  // Load tariff into form for editing
+  const handleEditTariff = (tariff) => {
+    // Create a fake route object from tariff data
+    setSelectedRoute({
+      id: tariff.route_id,
+      origin: tariff.origin,
+      destination: tariff.destination,
+      transport_mode: tariff.transport_mode,
+      container_size: tariff.container_size,
+      transit_days: tariff.transit_days,
+      avg_cost: tariff.total_cost
+    });
+    
+    // Load cost components
+    setCostComponents(tariff.cost_components?.map((c, i) => ({
+      id: c.id || `cost_${i}_${Date.now()}`,
+      name: c.name,
+      amount: c.amount,
+      is_base: c.is_base || false
+    })) || []);
+    
+    // Load margin
+    setMarginPercent(tariff.margin_percent || 20);
+    
+    // Load sale services
+    setSaleServices(tariff.sale_services?.map((s, i) => ({
+      id: s.id || `sale_${i}_${Date.now()}`,
+      name: s.name,
+      type: s.type || 'tarifa',
+      amount: s.amount
+    })) || []);
+    
+    setEditingTariffId(tariff.id);
+    setShowCreateForm(true);
+    toast.info('Editando tarifa: ' + tariff.origin + ' → ' + tariff.destination);
+  };
+
+  // Duplicate tariff (load into form as new)
+  const handleDuplicateTariff = (tariff) => {
+    // Create a fake route object from tariff data
+    setSelectedRoute({
+      id: tariff.route_id,
+      origin: tariff.origin,
+      destination: tariff.destination,
+      transport_mode: tariff.transport_mode,
+      container_size: tariff.container_size,
+      transit_days: tariff.transit_days,
+      avg_cost: tariff.total_cost
+    });
+    
+    // Load cost components with new IDs
+    setCostComponents(tariff.cost_components?.map((c, i) => ({
+      id: `dup_cost_${i}_${Date.now()}`,
+      name: c.name,
+      amount: c.amount,
+      is_base: c.is_base || false
+    })) || []);
+    
+    // Load margin
+    setMarginPercent(tariff.margin_percent || 20);
+    
+    // Load sale services with new IDs
+    setSaleServices(tariff.sale_services?.map((s, i) => ({
+      id: `dup_sale_${i}_${Date.now()}`,
+      name: s.name,
+      type: s.type || 'tarifa',
+      amount: s.amount
+    })) || []);
+    
+    setEditingTariffId(null); // null = create new
+    setShowCreateForm(true);
+    toast.info('Duplicando tarifa - modifica y guarda como nueva');
+  };
+
+  // Delete tariff
+  const handleDeleteTariff = async (tariffId) => {
+    if (!confirm('¿Eliminar esta tarifa pre-aprobada?')) return;
+    
+    try {
+      await api.delete(`/ops/pricing/tariffs/${tariffId}`);
+      setTariffs(tariffs.filter(t => t.id !== tariffId));
+      toast.success('Tarifa eliminada');
+    } catch (error) {
+      console.error(error);
+      toast.error('Error al eliminar tarifa');
+    }
   };
 
   const toggleTariffExpand = (id) => {
