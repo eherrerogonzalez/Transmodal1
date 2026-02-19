@@ -6044,8 +6044,8 @@ def generate_mock_clients():
         ))
     return clients
 
-def get_purchase_suppliers():
-    global _purchase_suppliers_cache
+def get_suppliers():
+    global _suppliers_cache
     if not _suppliers_cache:
         _suppliers_cache = generate_mock_suppliers()
     return _suppliers_cache
