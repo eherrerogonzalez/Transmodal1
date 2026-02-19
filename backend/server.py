@@ -5321,14 +5321,14 @@ async def get_all_suppliers(
     user: dict = Depends(verify_token)
 ):
     """Obtener todos los proveedores con sus tarifas"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     
     if category:
         suppliers = [s for s in suppliers if s.category == category]
     
     # Contar tarifas por categoría
     categories_count = {}
-    for s in get_suppliers():
+    for s in get_purchase_suppliers():
         if s.category not in categories_count:
             categories_count[s.category] = {"count": 0, "tariffs": 0}
         categories_count[s.category]["count"] += 1
@@ -5343,7 +5343,7 @@ async def get_all_suppliers(
 @api_router.get("/ops/purchases/suppliers/{supplier_id}")
 async def get_supplier_detail(supplier_id: str, user: dict = Depends(verify_token)):
     """Obtener detalle de un proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     
     if not supplier:
@@ -5354,8 +5354,8 @@ async def get_supplier_detail(supplier_id: str, user: dict = Depends(verify_toke
 @api_router.post("/ops/purchases/suppliers")
 async def create_supplier(data: dict, user: dict = Depends(verify_token)):
     """Crear un nuevo proveedor"""
-    global _suppliers_cache
-    suppliers = get_suppliers()
+    global _purchase_suppliers_cache
+    suppliers = get_purchase_suppliers()
     
     new_supplier = PurchaseSupplier(
         name=data["name"],
@@ -5375,8 +5375,8 @@ async def create_supplier(data: dict, user: dict = Depends(verify_token)):
 @api_router.post("/ops/purchases/suppliers/{supplier_id}/tariffs")
 async def add_supplier_tariff(supplier_id: str, data: dict, user: dict = Depends(verify_token)):
     """Agregar tarifa a un proveedor"""
-    global _suppliers_cache
-    suppliers = get_suppliers()
+    global _purchase_suppliers_cache
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     
     if not supplier:
@@ -5412,8 +5412,8 @@ async def add_supplier_tariff(supplier_id: str, data: dict, user: dict = Depends
 @api_router.put("/ops/purchases/suppliers/{supplier_id}/tariffs/{tariff_id}")
 async def update_supplier_tariff(supplier_id: str, tariff_id: str, data: dict, user: dict = Depends(verify_token)):
     """Actualizar tarifa de un proveedor"""
-    global _suppliers_cache
-    suppliers = get_suppliers()
+    global _purchase_suppliers_cache
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     
     if not supplier:
@@ -5434,8 +5434,8 @@ async def update_supplier_tariff(supplier_id: str, tariff_id: str, data: dict, u
 @api_router.delete("/ops/purchases/suppliers/{supplier_id}/tariffs/{tariff_id}")
 async def delete_supplier_tariff(supplier_id: str, tariff_id: str, user: dict = Depends(verify_token)):
     """Eliminar tarifa de un proveedor"""
-    global _suppliers_cache
-    suppliers = get_suppliers()
+    global _purchase_suppliers_cache
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     
     if not supplier:
@@ -6044,8 +6044,8 @@ def generate_mock_clients():
         ))
     return clients
 
-def get_suppliers():
-    global _suppliers_cache
+def get_purchase_suppliers():
+    global _purchase_suppliers_cache
     if not _suppliers_cache:
         _suppliers_cache = generate_mock_suppliers()
     return _suppliers_cache
@@ -6061,7 +6061,7 @@ def get_clients():
 @api_router.get("/ops/suppliers")
 async def list_suppliers(status: str = None, supplier_type: str = None, user: dict = Depends(verify_token)):
     """Listar proveedores"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     if status:
         suppliers = [s for s in suppliers if s.status == status]
     if supplier_type:
@@ -6071,7 +6071,7 @@ async def list_suppliers(status: str = None, supplier_type: str = None, user: di
 @api_router.get("/ops/suppliers/{supplier_id}")
 async def get_supplier(supplier_id: str, user: dict = Depends(verify_token)):
     """Obtener detalle de proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6080,7 +6080,7 @@ async def get_supplier(supplier_id: str, user: dict = Depends(verify_token)):
 @api_router.post("/ops/suppliers")
 async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token)):
     """Crear nuevo proveedor"""
-    global _suppliers_cache
+    global _purchase_suppliers_cache
     
     new_supplier = PurchaseSupplier(
         company_name=supplier_data.get("company_name"),
@@ -6103,7 +6103,7 @@ async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token
         status="pending_approval"
     )
     
-    _suppliers_cache = get_suppliers()
+    _purchase_suppliers_cache = get_purchase_suppliers()
     _suppliers_cache.insert(0, new_supplier)
     
     return {"success": True, "supplier": new_supplier}
@@ -6111,7 +6111,7 @@ async def create_supplier(supplier_data: dict, user: dict = Depends(verify_token
 @api_router.put("/ops/suppliers/{supplier_id}")
 async def update_supplier(supplier_id: str, supplier_data: dict, user: dict = Depends(verify_token)):
     """Actualizar proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6126,7 +6126,7 @@ async def update_supplier(supplier_id: str, supplier_data: dict, user: dict = De
 @api_router.post("/ops/suppliers/{supplier_id}/documents")
 async def add_supplier_document(supplier_id: str, doc_data: dict, user: dict = Depends(verify_token)):
     """Agregar documento a proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6145,7 +6145,7 @@ async def add_supplier_document(supplier_id: str, doc_data: dict, user: dict = D
 @api_router.post("/ops/suppliers/{supplier_id}/audits")
 async def add_supplier_audit(supplier_id: str, audit_data: dict, user: dict = Depends(verify_token)):
     """Agregar auditoría a proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
@@ -6168,7 +6168,7 @@ async def add_supplier_audit(supplier_id: str, audit_data: dict, user: dict = De
 @api_router.post("/ops/suppliers/{supplier_id}/sign-contract")
 async def sign_supplier_contract(supplier_id: str, user: dict = Depends(verify_token)):
     """Firmar contrato con proveedor"""
-    suppliers = get_suppliers()
+    suppliers = get_purchase_suppliers()
     supplier = next((s for s in suppliers if s.id == supplier_id), None)
     if not supplier:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
