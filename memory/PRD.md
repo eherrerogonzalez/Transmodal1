@@ -3,6 +3,30 @@
 ## Original Problem Statement
 Portal web integral para Transmodal, empresa de logística. La aplicación está destinada a sus clientes y equipo de operaciones interno.
 
+---
+
+## PANTALLA PRINCIPAL UNIFICADA (Nuevo - 19 Feb 2026)
+
+### Acceso Unificado a 4 Plataformas
+URL: `/` (raíz del sitio)
+
+Con un solo usuario (`operaciones` / `ops123`) se accede a las 4 plataformas:
+
+| Plataforma | Descripción | Ruta | Color |
+|------------|-------------|------|-------|
+| **Portal de Cliente** | Pedidos, contenedores, estado de cuenta | `/dashboard` | Azul |
+| **Portal de Operaciones** | Rentabilidad, pricing, contratos | `/ops/dashboard` | Gris/Slate |
+| **WMS - Almacén** | Inventario, ubicaciones, movimientos | `/wms/dashboard` | Verde/Emerald |
+| **Operador de Transporte** | Unidades, rutas, rastreo GPS | `/transport/dashboard` | Naranja/Amber |
+
+### Características:
+- Modal de login con colores diferenciados por plataforma
+- Credenciales demo visibles
+- Diseño oscuro con gradientes y efectos de hover
+- Cada plataforma tiene su propio sidebar con colores temáticos
+
+---
+
 ### Requerimientos del Producto:
 - **Portal de Cliente**: Dashboard con KPIs, gestión de pedidos y seguimiento de contenedores.
 - **Logística e IA**:
