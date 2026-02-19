@@ -5174,6 +5174,60 @@ async def operations_login(request: LoginRequest):
     
     raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
+# ==================== WMS ENDPOINTS ====================
+
+MOCK_WMS_USER = {
+    "id": "wms_001",
+    "username": "almacen",
+    "full_name": "Supervisor Almacén",
+    "email": "almacen@transmodal.com",
+    "user_type": "wms"
+}
+
+@api_router.post("/wms/auth/login")
+async def wms_login(request: LoginRequest):
+    """Login para portal WMS"""
+    valid_users = {
+        "operaciones": {"password": "ops123", "user": MOCK_WMS_USER},
+        "almacen": {"password": "wms123", "user": MOCK_WMS_USER},
+        "admin": {"password": "admin123", "user": {**MOCK_WMS_USER, "id": "wms_002", "username": "admin", "full_name": "Admin WMS"}}
+    }
+    
+    if request.username in valid_users and request.password == valid_users[request.username]["password"]:
+        return {
+            "token": f"wms_token_{request.username}_{uuid.uuid4().hex[:8]}",
+            "user": valid_users[request.username]["user"]
+        }
+    
+    raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+# ==================== TRANSPORT ENDPOINTS ====================
+
+MOCK_TRANSPORT_USER = {
+    "id": "transport_001",
+    "username": "transporte",
+    "full_name": "Coordinador Transporte",
+    "email": "transporte@transmodal.com",
+    "user_type": "transport"
+}
+
+@api_router.post("/transport/auth/login")
+async def transport_login(request: LoginRequest):
+    """Login para portal de transporte"""
+    valid_users = {
+        "operaciones": {"password": "ops123", "user": MOCK_TRANSPORT_USER},
+        "transporte": {"password": "trans123", "user": MOCK_TRANSPORT_USER},
+        "admin": {"password": "admin123", "user": {**MOCK_TRANSPORT_USER, "id": "transport_002", "username": "admin", "full_name": "Admin Transporte"}}
+    }
+    
+    if request.username in valid_users and request.password == valid_users[request.username]["password"]:
+        return {
+            "token": f"transport_token_{request.username}_{uuid.uuid4().hex[:8]}",
+            "user": valid_users[request.username]["user"]
+        }
+    
+    raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
 @api_router.get("/ops/dashboard/profitability")
 async def get_profitability_dashboard(
     period_start: str = None,
