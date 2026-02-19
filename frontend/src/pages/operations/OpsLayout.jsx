@@ -12,23 +12,62 @@ import {
   ChevronLeft,
   ChevronRight,
   Building2,
-  Users
+  Users,
+  Warehouse,
+  Truck,
+  MapPin,
+  ArrowLeftRight,
+  Route,
+  Fuel,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 
-const navItems = [
-  { path: '/ops/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { path: '/ops/containers', icon: Package, label: 'Contenedores' },
-  { path: '/ops/pricing', icon: Calculator, label: 'Pricing' },
-  { path: '/ops/quotes', icon: FileText, label: 'Contratos' },
-  { path: '/ops/suppliers', icon: Building2, label: 'Proveedores' },
-  { path: '/ops/clients', icon: Users, label: 'Clientes' },
+const navSections = [
+  {
+    title: 'General',
+    items: [
+      { path: '/ops/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/ops/pricing', icon: Calculator, label: 'Pricing' },
+      { path: '/ops/quotes', icon: FileText, label: 'Contratos' },
+    ]
+  },
+  {
+    title: 'WMS - Almacén',
+    icon: Warehouse,
+    color: 'text-emerald-400',
+    items: [
+      { path: '/ops/wms/inventory', icon: Package, label: 'Inventario' },
+      { path: '/ops/wms/locations', icon: MapPin, label: 'Ubicaciones' },
+      { path: '/ops/wms/movements', icon: ArrowLeftRight, label: 'Movimientos' },
+    ]
+  },
+  {
+    title: 'TMS - Transporte',
+    icon: Truck,
+    color: 'text-amber-400',
+    items: [
+      { path: '/ops/tms/units', icon: Truck, label: 'Unidades' },
+      { path: '/ops/tms/routes', icon: Route, label: 'Rutas' },
+      { path: '/ops/tms/tracking', icon: MapPin, label: 'Rastreo GPS' },
+      { path: '/ops/tms/fuel', icon: Fuel, label: 'Combustible' },
+    ]
+  },
+  {
+    title: 'Administración',
+    items: [
+      { path: '/ops/containers', icon: Package, label: 'Contenedores' },
+      { path: '/ops/suppliers', icon: Building2, label: 'Proveedores' },
+      { path: '/ops/clients', icon: Users, label: 'Clientes' },
+    ]
+  }
 ];
 
 export default function OpsLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [expandedSections, setExpandedSections] = useState(['General', 'WMS - Almacén', 'TMS - Transporte', 'Administración']);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,14 +82,22 @@ export default function OpsLayout() {
   const handleLogout = () => {
     localStorage.removeItem('ops_token');
     localStorage.removeItem('ops_user');
-    navigate('/ops/login');
+    navigate('/');
+  };
+
+  const toggleSection = (title) => {
+    setExpandedSections(prev => 
+      prev.includes(title) 
+        ? prev.filter(t => t !== title)
+        : [...prev, title]
+    );
   };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 py-6 border-b border-slate-700">
-        <div className="w-10 h-10 bg-blue-600 rounded-sm flex items-center justify-center">
+        <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
           <Ship className="w-6 h-6 text-white" />
         </div>
         {!collapsed && (
@@ -62,24 +109,47 @@ export default function OpsLayout() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-2 space-y-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-sm transition-colors ${
-                isActive
-                  ? 'text-white bg-blue-600/20 border-l-2 border-blue-500'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-              }`
-            }
-            data-testid={`nav-ops-${item.path.split('/').pop()}`}
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-          </NavLink>
+      <nav className="flex-1 py-4 px-2 space-y-2 overflow-y-auto">
+        {navSections.map((section) => (
+          <div key={section.title}>
+            {/* Section Header */}
+            {!collapsed && (
+              <button
+                onClick={() => toggleSection(section.title)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300"
+              >
+                <div className="flex items-center gap-2">
+                  {section.icon && <section.icon className={`w-4 h-4 ${section.color || ''}`} />}
+                  <span>{section.title}</span>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.includes(section.title) ? '' : '-rotate-90'}`} />
+              </button>
+            )}
+            
+            {/* Section Items */}
+            {(collapsed || expandedSections.includes(section.title)) && (
+              <div className="space-y-1">
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
+                        isActive
+                          ? 'text-white bg-blue-600/20 border-l-2 border-blue-500'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      }`
+                    }
+                    data-testid={`nav-ops-${item.path.split('/').pop()}`}
+                  >
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </nav>
 
@@ -121,7 +191,7 @@ export default function OpsLayout() {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-sm shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg shadow-lg"
       >
         <Menu className="w-5 h-5" />
       </button>
