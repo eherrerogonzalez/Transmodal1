@@ -72,7 +72,8 @@ export default function OpsTariffs() {
   const [expandedTariffs, setExpandedTariffs] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Create form state
+  // Create/Edit form state
+  const [editingTariffId, setEditingTariffId] = useState(null); // null = create mode, id = edit mode
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [showRouteSelector, setShowRouteSelector] = useState(false);
   const [routeSearchQuery, setRouteSearchQuery] = useState('');
