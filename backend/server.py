@@ -4080,56 +4080,723 @@ def generate_supplier_quotes(transport_mode: str, base_cost: float, transit_days
     return quotes
 
 def generate_route_prices():
-    """Genera precios de rutas con proveedores"""
+    """Genera precios de rutas con tarifas reales de Transmodal"""
     routes = []
     
-    origins = ["Shanghai", "Rotterdam", "Hamburg", "Los Angeles", "Singapore", "Miami", "Long Beach"]
-    destinations = ["Manzanillo", "Veracruz", "Lázaro Cárdenas", "Altamira", "CDMX", "Guadalajara", "Monterrey"]
-    modes = [
-        {"mode": "maritime", "name": "Marítimo"},
-        {"mode": "rail", "name": "Ferroviario"},
-        {"mode": "intermodal", "name": "Intermodal"},
-    ]
-    sizes = ["20ft", "40ft", "40ft HC"]
+    # ==================== TARIFAS REALES TRANSMODAL ====================
+    TARIFAS_TRANSMODAL = {
+        "veracruz": {
+            "puerto": "Veracruz",
+            "descripcion": "Puerto del Golfo de México - Conexión Europa, USA, Sudamérica",
+            "ffcc_importacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Importación",
+                "ruta": "Veracruz → CDMX",
+                "tarifas": [
+                    {"tamano": "20'", "sin_retorno": 14140, "con_retorno": 17180, "imo_sin_retorno": 19350, "imo_con_retorno": 22380, "maniobras": 22024},
+                    {"tamano": "40'", "sin_retorno": 14900, "con_retorno": 18400, "imo_sin_retorno": 20670, "imo_con_retorno": 24170, "maniobras": 22024}
+                ]
+            },
+            "ffcc_exportacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Exportación",
+                "ruta": "CDMX → Veracruz",
+                "tarifas": [
+                    {"tamano": "20'", "tarifa": 15600, "imo": 20440},
+                    {"tamano": "40'", "tarifa": 16290, "imo": 21640}
+                ]
+            },
+            "verex": {
+                "modalidad": "VEREX",
+                "tipo": "FFCC + Inspección",
+                "trafico": "Importación",
+                "tarifas": [
+                    {"ruta": "Veracruz → Ferrovalle", "tamano": "20'/40'", "sin_retorno": 35220, "con_retorno": 39680},
+                    {"ruta": "Veracruz → TILH", "tamano": "20'", "sin_retorno": 31330, "con_retorno": 33200},
+                    {"ruta": "Veracruz → TILH", "tamano": "40'", "sin_retorno": 31930, "con_retorno": 33960}
+                ]
+            },
+            "spf": {
+                "modalidad": "SPF",
+                "tipo": "Camión Puerta a Puerta RT",
+                "trafico": "Importación/Exportación",
+                "ruta": "Veracruz ↔ México",
+                "tarifas": [
+                    {"tipo_unidad": "Sencillo", "tarifa_rt": 33900, "peso_max": "25 Ton"},
+                    {"tipo_unidad": "Full", "tarifa_rt": 53600, "peso_max": "22.5 Ton"}
+                ]
+            }
+        },
+        "manzanillo": {
+            "puerto": "Manzanillo",
+            "descripcion": "Puerto del Pacífico - Gateway Comercio Asia",
+            "ffcc_importacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Importación",
+                "ruta": "Manzanillo → CDMX",
+                "tarifas": [
+                    {"tamano": "20'", "sin_retorno": 21450, "con_retorno": 25400, "imo_sin_retorno": 32130, "imo_con_retorno": 36080, "maniobras": 16800},
+                    {"tamano": "40'", "sin_retorno": 24180, "con_retorno": 30530, "imo_sin_retorno": 36910, "imo_con_retorno": 43260, "maniobras": 16800}
+                ]
+            },
+            "ffcc_exportacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Exportación",
+                "ruta": "CDMX → Manzanillo",
+                "tarifas": [
+                    {"tamano": "20'", "tarifa": 22350, "imo": 32170},
+                    {"tamano": "40'", "tarifa": 25620, "imo": 37860}
+                ]
+            },
+            "spf": {
+                "modalidad": "SPF",
+                "tipo": "Camión Puerta a Puerta RT",
+                "trafico": "Importación/Exportación",
+                "ruta": "Manzanillo ↔ México",
+                "tarifas": [
+                    {"tipo_unidad": "Sencillo", "tarifa_rt": 65600, "peso_max": "25 Ton"},
+                    {"tipo_unidad": "Full", "tarifa_rt": 90700, "peso_max": "22.5 Ton"}
+                ]
+            }
+        },
+        "lazaro_cardenas": {
+            "puerto": "Lázaro Cárdenas",
+            "descripcion": "Puerto de Aguas Profundas - Buques Post-Panamax",
+            "ffcc_importacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Importación",
+                "ruta": "Lázaro Cárdenas → CDMX",
+                "tarifas": [
+                    {"tamano": "20'", "sin_retorno": 25140, "con_retorno": 29700, "imo_sin_retorno": 28590, "imo_con_retorno": 33150, "maniobras": 15108},
+                    {"tamano": "40'", "sin_retorno": 33390, "con_retorno": 41880, "imo_sin_retorno": 36840, "imo_con_retorno": 45330, "maniobras": 15108}
+                ]
+            },
+            "ffcc_exportacion": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Exportación",
+                "ruta": "CDMX → Lázaro Cárdenas",
+                "tarifas": [
+                    {"tamano": "20'", "tarifa": 20920, "imo": 23420},
+                    {"tamano": "40'", "tarifa": 26820, "imo": 29270}
+                ]
+            },
+            "spf": {
+                "modalidad": "SPF",
+                "tipo": "Camión Puerta a Puerta RT",
+                "trafico": "Importación/Exportación",
+                "ruta": "Lázaro Cárdenas ↔ México",
+                "tarifas": [
+                    {"tipo_unidad": "Sencillo", "tarifa_rt": 53400, "peso_max": "25 Ton"},
+                    {"tipo_unidad": "Full", "tarifa_rt": 69300, "peso_max": "22.5 Ton"}
+                ]
+            }
+        },
+        "rutas_nacionales": {
+            "descripcion": "Rutas Nacionales FFCC y Distribución",
+            "ffcc_nacional": {
+                "modalidad": "FFCC",
+                "tipo": "Ferrocarril",
+                "trafico": "Nacional",
+                "tarifas": [
+                    {"ruta": "Mexicali → CDMX", "tamano": "53'", "tarifa": 42090},
+                    {"ruta": "CDMX → Mexicali", "tamano": "53'", "tarifa": 62950},
+                    {"ruta": "Cd. Obregón → CDMX", "tamano": "53'", "tarifa": 35340},
+                    {"ruta": "CDMX → Cd. Obregón", "tamano": "53'", "tarifa": 47410}
+                ]
+            },
+            "distribucion": {
+                "modalidad": "DIST",
+                "tipo": "Camión One Way",
+                "trafico": "Nacional",
+                "tarifas": [
+                    {"ruta": "Guadalajara → México", "tamano": "53'", "tarifa": 25000, "peso_max": "25 Ton"},
+                    {"ruta": "México → Guadalajara", "tamano": "53'", "tarifa": 27300, "peso_max": "25 Ton"},
+                    {"ruta": "Guadalajara → Monterrey", "tamano": "53'", "tarifa": 32000, "peso_max": "25 Ton"},
+                    {"ruta": "Monterrey → México", "tamano": "53'", "tarifa": 30500, "peso_max": "25 Ton"},
+                    {"ruta": "México → Monterrey", "tamano": "53'", "tarifa": 35650, "peso_max": "25 Ton"},
+                    {"ruta": "Veracruz → México", "tamano": "3.5 Ton", "tarifa": 22600, "peso_max": "3.5 Ton"},
+                    {"ruta": "Veracruz → México", "tamano": "12 Ton", "tarifa": 19300, "peso_max": "12 Ton"}
+                ]
+            }
+        }
+    }
     
-    for origin in origins:
-        for dest in destinations[:4]:  # Solo puertos como destino marítimo
-            for mode_info in modes:
-                for size in sizes:
-                    base_cost = random.uniform(1500, 4000)
-                    transit_days = random.randint(8, 35)
-                    
-                    # Generar cotizaciones de proveedores
-                    supplier_quotes = generate_supplier_quotes(mode_info["mode"], base_cost, transit_days)
-                    
-                    # Calcular estadísticas de costos
-                    costs = [q.cost for q in supplier_quotes]
-                    avg_cost = sum(costs) / len(costs) if costs else base_cost
-                    min_cost = min(costs) if costs else base_cost
-                    max_cost = max(costs) if costs else base_cost
-                    best_supplier = min(supplier_quotes, key=lambda x: x.cost).supplier_name if supplier_quotes else None
-                    
-                    # Calcular precio sugerido con margen sobre el costo promedio
-                    margin = random.uniform(0.18, 0.32)
-                    suggested = avg_cost * (1 + margin)
-                    
-                    routes.append(RoutePrice(
-                        origin=origin,
-                        destination=dest,
-                        transport_mode=mode_info["mode"],
-                        container_size=size,
-                        container_type="dry",
-                        supplier_quotes=supplier_quotes,
-                        avg_cost=round(avg_cost, 2),
-                        min_cost=round(min_cost, 2),
-                        max_cost=round(max_cost, 2),
-                        best_supplier=best_supplier,
-                        suggested_price=round(suggested, 2),
-                        margin_percent=round(margin * 100, 1),
-                        transit_days=transit_days,
-                        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
-                    ))
+    validity_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    validity_end = (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+    
+    route_id = 1
+    
+    # ==================== VERACRUZ - FFCC Importación ====================
+    for t in TARIFAS_TRANSMODAL["veracruz"]["ffcc_importacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        # Tarifa sin retorno
+        routes.append(RoutePrice(
+            id=f"VER-IMP-FFCC-{route_id}",
+            origin="Veracruz",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["sin_retorno"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["sin_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["sin_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación sin retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+        
+        # Tarifa con retorno
+        routes.append(RoutePrice(
+            id=f"VER-IMP-FFCC-RT-{route_id}",
+            origin="Veracruz",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["con_retorno"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["con_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["con_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación CON retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+        
+        # Tarifa IMO (carga peligrosa)
+        routes.append(RoutePrice(
+            id=f"VER-IMP-FFCC-IMO-{route_id}",
+            origin="Veracruz",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="imo",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["imo_sin_retorno"],
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["imo_sin_retorno"],
+            min_cost=t["imo_sin_retorno"],
+            max_cost=t["imo_con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["imo_sin_retorno"] * 1.25, 2),
+            margin_percent=25.0,
+            transit_days=4,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Importación IMO (Carga Peligrosa) sin retorno"
+        ))
+        route_id += 1
+    
+    # ==================== VERACRUZ - FFCC Exportación ====================
+    for t in TARIFAS_TRANSMODAL["veracruz"]["ffcc_exportacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        routes.append(RoutePrice(
+            id=f"VER-EXP-FFCC-{route_id}",
+            origin="CDMX",
+            destination="Veracruz",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["tarifa"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["tarifa"],
+            min_cost=t["tarifa"],
+            max_cost=t["imo"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["tarifa"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Exportación"
+        ))
+        route_id += 1
+    
+    # ==================== VERACRUZ - VEREX (FFCC + Inspección) ====================
+    for t in TARIFAS_TRANSMODAL["veracruz"]["verex"]["tarifas"]:
+        dest = "Ferrovalle" if "Ferrovalle" in t["ruta"] else "TILH"
+        size = "40ft" if "40'" in t["tamano"] else "20ft"
+        routes.append(RoutePrice(
+            id=f"VER-VEREX-{route_id}",
+            origin="Veracruz",
+            destination=dest,
+            transport_mode="intermodal",
+            container_size=size if size != "20ft" else "20ft",
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="VEREX Transmodal",
+                supplier_type="intermodal",
+                cost=t["sin_retorno"],
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Operaciones VEREX",
+                contact_email="operaciones@transmodal.com.mx"
+            )],
+            avg_cost=t["sin_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="VEREX Transmodal",
+            suggested_price=round(t["sin_retorno"] * 1.18, 2),
+            margin_percent=18.0,
+            transit_days=4,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="VEREX - FFCC + Inspección sin retorno"
+        ))
+        route_id += 1
+    
+    # ==================== VERACRUZ - SPF (Camión RT) ====================
+    for t in TARIFAS_TRANSMODAL["veracruz"]["spf"]["tarifas"]:
+        size = "Sencillo" if t["tipo_unidad"] == "Sencillo" else "Full"
+        routes.append(RoutePrice(
+            id=f"VER-SPF-{route_id}",
+            origin="Veracruz",
+            destination="CDMX",
+            transport_mode="truck",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Transmodal SPF",
+                supplier_type="transportista",
+                cost=t["tarifa_rt"],
+                transit_days=1,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Flotilla SPF",
+                contact_email="spf@transmodal.com.mx"
+            )],
+            avg_cost=t["tarifa_rt"],
+            min_cost=t["tarifa_rt"],
+            max_cost=t["tarifa_rt"],
+            best_supplier="Transmodal SPF",
+            suggested_price=round(t["tarifa_rt"] * 1.15, 2),
+            margin_percent=15.0,
+            transit_days=1,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"Camión Puerta a Puerta RT - {t['tipo_unidad']} ({t['peso_max']})"
+        ))
+        route_id += 1
+    
+    # ==================== MANZANILLO - FFCC Importación ====================
+    for t in TARIFAS_TRANSMODAL["manzanillo"]["ffcc_importacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        routes.append(RoutePrice(
+            id=f"MZN-IMP-FFCC-{route_id}",
+            origin="Manzanillo",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["sin_retorno"],
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            ), SupplierQuote(
+                supplier_name="KCSM",
+                supplier_type="ferroviaria",
+                cost=round(t["sin_retorno"] * 1.05, 2),
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas KCSM",
+                contact_email="ventas@kcsm.com.mx"
+            )],
+            avg_cost=t["sin_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["sin_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=4,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación sin retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+        
+        # Con retorno
+        routes.append(RoutePrice(
+            id=f"MZN-IMP-FFCC-RT-{route_id}",
+            origin="Manzanillo",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["con_retorno"],
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["con_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["con_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=4,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación CON retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+        
+        # IMO
+        routes.append(RoutePrice(
+            id=f"MZN-IMP-FFCC-IMO-{route_id}",
+            origin="Manzanillo",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="imo",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["imo_sin_retorno"],
+                transit_days=5,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["imo_sin_retorno"],
+            min_cost=t["imo_sin_retorno"],
+            max_cost=t["imo_con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["imo_sin_retorno"] * 1.25, 2),
+            margin_percent=25.0,
+            transit_days=5,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Importación IMO (Carga Peligrosa) sin retorno"
+        ))
+        route_id += 1
+    
+    # ==================== MANZANILLO - FFCC Exportación ====================
+    for t in TARIFAS_TRANSMODAL["manzanillo"]["ffcc_exportacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        routes.append(RoutePrice(
+            id=f"MZN-EXP-FFCC-{route_id}",
+            origin="CDMX",
+            destination="Manzanillo",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["tarifa"],
+                transit_days=4,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["tarifa"],
+            min_cost=t["tarifa"],
+            max_cost=t["imo"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["tarifa"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=4,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Exportación"
+        ))
+        route_id += 1
+    
+    # ==================== MANZANILLO - SPF (Camión RT) ====================
+    for t in TARIFAS_TRANSMODAL["manzanillo"]["spf"]["tarifas"]:
+        size = "Sencillo" if t["tipo_unidad"] == "Sencillo" else "Full"
+        routes.append(RoutePrice(
+            id=f"MZN-SPF-{route_id}",
+            origin="Manzanillo",
+            destination="CDMX",
+            transport_mode="truck",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Transmodal SPF",
+                supplier_type="transportista",
+                cost=t["tarifa_rt"],
+                transit_days=2,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Flotilla SPF",
+                contact_email="spf@transmodal.com.mx"
+            )],
+            avg_cost=t["tarifa_rt"],
+            min_cost=t["tarifa_rt"],
+            max_cost=t["tarifa_rt"],
+            best_supplier="Transmodal SPF",
+            suggested_price=round(t["tarifa_rt"] * 1.15, 2),
+            margin_percent=15.0,
+            transit_days=2,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"Camión Puerta a Puerta RT - {t['tipo_unidad']} ({t['peso_max']})"
+        ))
+        route_id += 1
+    
+    # ==================== LÁZARO CÁRDENAS - FFCC Importación ====================
+    for t in TARIFAS_TRANSMODAL["lazaro_cardenas"]["ffcc_importacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        routes.append(RoutePrice(
+            id=f"LZC-IMP-FFCC-{route_id}",
+            origin="Lázaro Cárdenas",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["sin_retorno"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["sin_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["sin_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación sin retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+        
+        # Con retorno
+        routes.append(RoutePrice(
+            id=f"LZC-IMP-FFCC-RT-{route_id}",
+            origin="Lázaro Cárdenas",
+            destination="CDMX",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["con_retorno"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["con_retorno"],
+            min_cost=t["sin_retorno"],
+            max_cost=t["con_retorno"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["con_retorno"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"FFCC Importación CON retorno. Maniobras: ${t['maniobras']:,} MXN"
+        ))
+        route_id += 1
+    
+    # ==================== LÁZARO CÁRDENAS - FFCC Exportación ====================
+    for t in TARIFAS_TRANSMODAL["lazaro_cardenas"]["ffcc_exportacion"]["tarifas"]:
+        size = "20ft" if t["tamano"] == "20'" else "40ft"
+        routes.append(RoutePrice(
+            id=f"LZC-EXP-FFCC-{route_id}",
+            origin="CDMX",
+            destination="Lázaro Cárdenas",
+            transport_mode="rail",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["tarifa"],
+                transit_days=3,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["tarifa"],
+            min_cost=t["tarifa"],
+            max_cost=t["imo"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["tarifa"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=3,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Exportación"
+        ))
+        route_id += 1
+    
+    # ==================== LÁZARO CÁRDENAS - SPF (Camión RT) ====================
+    for t in TARIFAS_TRANSMODAL["lazaro_cardenas"]["spf"]["tarifas"]:
+        size = "Sencillo" if t["tipo_unidad"] == "Sencillo" else "Full"
+        routes.append(RoutePrice(
+            id=f"LZC-SPF-{route_id}",
+            origin="Lázaro Cárdenas",
+            destination="CDMX",
+            transport_mode="truck",
+            container_size=size,
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Transmodal SPF",
+                supplier_type="transportista",
+                cost=t["tarifa_rt"],
+                transit_days=2,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Flotilla SPF",
+                contact_email="spf@transmodal.com.mx"
+            )],
+            avg_cost=t["tarifa_rt"],
+            min_cost=t["tarifa_rt"],
+            max_cost=t["tarifa_rt"],
+            best_supplier="Transmodal SPF",
+            suggested_price=round(t["tarifa_rt"] * 1.15, 2),
+            margin_percent=15.0,
+            transit_days=2,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"Camión Puerta a Puerta RT - {t['tipo_unidad']} ({t['peso_max']})"
+        ))
+        route_id += 1
+    
+    # ==================== RUTAS NACIONALES - FFCC ====================
+    for t in TARIFAS_TRANSMODAL["rutas_nacionales"]["ffcc_nacional"]["tarifas"]:
+        parts = t["ruta"].split(" → ")
+        origin = parts[0]
+        dest = parts[1]
+        routes.append(RoutePrice(
+            id=f"NAC-FFCC-{route_id}",
+            origin=origin,
+            destination=dest,
+            transport_mode="rail",
+            container_size="53ft",
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Ferromex",
+                supplier_type="ferroviaria",
+                cost=t["tarifa"],
+                transit_days=5,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Ventas Ferromex",
+                contact_email="ventas@ferromex.com.mx"
+            )],
+            avg_cost=t["tarifa"],
+            min_cost=t["tarifa"],
+            max_cost=t["tarifa"],
+            best_supplier="Ferromex",
+            suggested_price=round(t["tarifa"] * 1.20, 2),
+            margin_percent=20.0,
+            transit_days=5,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes="FFCC Nacional"
+        ))
+        route_id += 1
+    
+    # ==================== RUTAS NACIONALES - Distribución ====================
+    for t in TARIFAS_TRANSMODAL["rutas_nacionales"]["distribucion"]["tarifas"]:
+        parts = t["ruta"].split(" → ")
+        origin = parts[0]
+        dest = parts[1]
+        routes.append(RoutePrice(
+            id=f"NAC-DIST-{route_id}",
+            origin=origin,
+            destination=dest,
+            transport_mode="truck",
+            container_size=t["tamano"],
+            container_type="dry",
+            supplier_quotes=[SupplierQuote(
+                supplier_name="Transmodal Distribución",
+                supplier_type="transportista",
+                cost=t["tarifa"],
+                transit_days=1,
+                validity_start=validity_start,
+                validity_end=validity_end,
+                contact_name="Distribución Nacional",
+                contact_email="distribucion@transmodal.com.mx"
+            )],
+            avg_cost=t["tarifa"],
+            min_cost=t["tarifa"],
+            max_cost=t["tarifa"],
+            best_supplier="Transmodal Distribución",
+            suggested_price=round(t["tarifa"] * 1.18, 2),
+            margin_percent=18.0,
+            transit_days=1,
+            validity_start=validity_start,
+            validity_end=validity_end,
+            notes=f"Camión One Way - {t.get('peso_max', 'N/A')}"
+        ))
+        route_id += 1
     
     return routes
 
