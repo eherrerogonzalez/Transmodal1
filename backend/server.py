@@ -4062,6 +4062,284 @@ def reset_operations_cache():
     global _operations_containers_cache
     _operations_containers_cache = None
 
+# ==================== TARIFARIO DE COMPRAS (PROVEEDORES) ====================
+
+_suppliers_cache = None
+
+def generate_suppliers_with_tariffs():
+    """Genera el catálogo de proveedores con sus tarifas reales de Transmodal"""
+    suppliers = []
+    validity_start = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    validity_end = (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")
+    
+    # ==================== FERROCARRIL ====================
+    # Ferromex
+    ferromex = Supplier(
+        id="sup_ferromex",
+        name="Ferromex",
+        category="ferrocarril",
+        contact_name="Ventas Corporativas",
+        contact_email="ventas@ferromex.com.mx",
+        contact_phone="55 5000 0000",
+        tariffs=[
+            # Veracruz - Importación
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX", origin="Veracruz", destination="CDMX",
+                container_size="20ft", cost=14140, includes_return=False, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX", origin="Veracruz", destination="CDMX",
+                container_size="20ft", cost=17180, includes_return=True, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Con retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX IMO", origin="Veracruz", destination="CDMX",
+                container_size="20ft", cost=19350, is_imo=True, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Carga peligrosa"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX", origin="Veracruz", destination="CDMX",
+                container_size="40ft", cost=14900, includes_return=False, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX", origin="Veracruz", destination="CDMX",
+                container_size="40ft", cost=18400, includes_return=True, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Con retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Veracruz → CDMX IMO", origin="Veracruz", destination="CDMX",
+                container_size="40ft", cost=20670, is_imo=True, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Carga peligrosa"),
+            # Veracruz - Exportación
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="CDMX → Veracruz", origin="CDMX", destination="Veracruz",
+                container_size="20ft", cost=15600, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Exportación"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="CDMX → Veracruz", origin="CDMX", destination="Veracruz",
+                container_size="40ft", cost=16290, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Exportación"),
+            # Manzanillo - Importación
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Manzanillo → CDMX", origin="Manzanillo", destination="CDMX",
+                container_size="20ft", cost=21450, includes_return=False, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Manzanillo → CDMX", origin="Manzanillo", destination="CDMX",
+                container_size="20ft", cost=25400, includes_return=True, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Con retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Manzanillo → CDMX", origin="Manzanillo", destination="CDMX",
+                container_size="40ft", cost=24180, includes_return=False, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Manzanillo → CDMX", origin="Manzanillo", destination="CDMX",
+                container_size="40ft", cost=30530, includes_return=True, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Con retorno"),
+            # Manzanillo - Exportación
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="CDMX → Manzanillo", origin="CDMX", destination="Manzanillo",
+                container_size="20ft", cost=22350, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Exportación"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="CDMX → Manzanillo", origin="CDMX", destination="Manzanillo",
+                container_size="40ft", cost=25620, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Exportación"),
+            # Lázaro Cárdenas
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Lázaro Cárdenas → CDMX", origin="Lázaro Cárdenas", destination="CDMX",
+                container_size="20ft", cost=25140, includes_return=False, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Lázaro Cárdenas → CDMX", origin="Lázaro Cárdenas", destination="CDMX",
+                container_size="40ft", cost=33390, includes_return=False, transit_days=3,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            # Rutas Nacionales
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Mexicali → CDMX", origin="Mexicali", destination="CDMX",
+                container_size="53ft", cost=42090, transit_days=5,
+                validity_start=validity_start, validity_end=validity_end),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="CDMX → Mexicali", origin="CDMX", destination="Mexicali",
+                container_size="53ft", cost=62950, transit_days=5,
+                validity_start=validity_start, validity_end=validity_end),
+            SupplierTariff(supplier_id="sup_ferromex", supplier_name="Ferromex", category="ferrocarril",
+                service_name="Cd. Obregón → CDMX", origin="Cd. Obregón", destination="CDMX",
+                container_size="53ft", cost=35340, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end),
+        ]
+    )
+    suppliers.append(ferromex)
+    
+    # ==================== TERMINALES PORTUARIAS ====================
+    # Terminal Veracruz (ICAVE/SSA)
+    terminal_veracruz = Supplier(
+        id="sup_terminal_veracruz",
+        name="ICAVE Veracruz",
+        category="terminal_portuaria",
+        contact_name="Operaciones",
+        contact_email="operaciones@icave.com.mx",
+        tariffs=[
+            SupplierTariff(supplier_id="sup_terminal_veracruz", supplier_name="ICAVE Veracruz", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Veracruz", container_size="20ft",
+                cost=22024, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+            SupplierTariff(supplier_id="sup_terminal_veracruz", supplier_name="ICAVE Veracruz", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Veracruz", container_size="40ft",
+                cost=22024, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+        ]
+    )
+    suppliers.append(terminal_veracruz)
+    
+    # Terminal Manzanillo (CONTECON/SSA)
+    terminal_manzanillo = Supplier(
+        id="sup_terminal_manzanillo",
+        name="CONTECON Manzanillo",
+        category="terminal_portuaria",
+        contact_name="Operaciones",
+        contact_email="operaciones@contecon.com.mx",
+        tariffs=[
+            SupplierTariff(supplier_id="sup_terminal_manzanillo", supplier_name="CONTECON Manzanillo", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Manzanillo", container_size="20ft",
+                cost=16800, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+            SupplierTariff(supplier_id="sup_terminal_manzanillo", supplier_name="CONTECON Manzanillo", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Manzanillo", container_size="40ft",
+                cost=16800, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+        ]
+    )
+    suppliers.append(terminal_manzanillo)
+    
+    # Terminal Lázaro Cárdenas
+    terminal_lazaro = Supplier(
+        id="sup_terminal_lazaro",
+        name="APM Terminals Lázaro Cárdenas",
+        category="terminal_portuaria",
+        contact_name="Operaciones",
+        contact_email="operaciones@apmterminals.com",
+        tariffs=[
+            SupplierTariff(supplier_id="sup_terminal_lazaro", supplier_name="APM Terminals Lázaro Cárdenas", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Lázaro Cárdenas", container_size="20ft",
+                cost=15108, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+            SupplierTariff(supplier_id="sup_terminal_lazaro", supplier_name="APM Terminals Lázaro Cárdenas", category="terminal_portuaria",
+                service_name="Maniobras Importación", origin="Lázaro Cárdenas", container_size="40ft",
+                cost=15108, unit="por_contenedor",
+                validity_start=validity_start, validity_end=validity_end),
+        ]
+    )
+    suppliers.append(terminal_lazaro)
+    
+    # ==================== TRANSPORTISTAS (SPF) ====================
+    transmodal_spf = Supplier(
+        id="sup_transmodal_spf",
+        name="Transmodal SPF",
+        category="transportista",
+        contact_name="Flotilla SPF",
+        contact_email="spf@transmodal.com.mx",
+        tariffs=[
+            # Veracruz
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Veracruz ↔ CDMX Sencillo", origin="Veracruz", destination="CDMX",
+                container_size="Sencillo", cost=33900, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Veracruz ↔ CDMX Full", origin="Veracruz", destination="CDMX",
+                container_size="Full", cost=53600, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 22.5 Ton"),
+            # Manzanillo
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Manzanillo ↔ CDMX Sencillo", origin="Manzanillo", destination="CDMX",
+                container_size="Sencillo", cost=65600, transit_days=2,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Manzanillo ↔ CDMX Full", origin="Manzanillo", destination="CDMX",
+                container_size="Full", cost=90700, transit_days=2,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 22.5 Ton"),
+            # Lázaro Cárdenas
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Lázaro Cárdenas ↔ CDMX Sencillo", origin="Lázaro Cárdenas", destination="CDMX",
+                container_size="Sencillo", cost=53400, transit_days=2,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_spf", supplier_name="Transmodal SPF", category="transportista",
+                service_name="Lázaro Cárdenas ↔ CDMX Full", origin="Lázaro Cárdenas", destination="CDMX",
+                container_size="Full", cost=69300, transit_days=2,
+                validity_start=validity_start, validity_end=validity_end, notes="Puerta a Puerta RT - 22.5 Ton"),
+        ]
+    )
+    suppliers.append(transmodal_spf)
+    
+    # ==================== DISTRIBUCIÓN NACIONAL ====================
+    transmodal_dist = Supplier(
+        id="sup_transmodal_dist",
+        name="Transmodal Distribución",
+        category="transportista",
+        contact_name="Distribución Nacional",
+        contact_email="distribucion@transmodal.com.mx",
+        tariffs=[
+            SupplierTariff(supplier_id="sup_transmodal_dist", supplier_name="Transmodal Distribución", category="transportista",
+                service_name="Guadalajara → México", origin="Guadalajara", destination="México",
+                container_size="53ft", cost=25000, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="One Way - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_dist", supplier_name="Transmodal Distribución", category="transportista",
+                service_name="México → Guadalajara", origin="México", destination="Guadalajara",
+                container_size="53ft", cost=27300, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="One Way - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_dist", supplier_name="Transmodal Distribución", category="transportista",
+                service_name="Guadalajara → Monterrey", origin="Guadalajara", destination="Monterrey",
+                container_size="53ft", cost=32000, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="One Way - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_dist", supplier_name="Transmodal Distribución", category="transportista",
+                service_name="Monterrey → México", origin="Monterrey", destination="México",
+                container_size="53ft", cost=30500, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="One Way - 25 Ton"),
+            SupplierTariff(supplier_id="sup_transmodal_dist", supplier_name="Transmodal Distribución", category="transportista",
+                service_name="México → Monterrey", origin="México", destination="Monterrey",
+                container_size="53ft", cost=35650, transit_days=1,
+                validity_start=validity_start, validity_end=validity_end, notes="One Way - 25 Ton"),
+        ]
+    )
+    suppliers.append(transmodal_dist)
+    
+    # ==================== TERMINALES INTERMODALES (VEREX) ====================
+    verex = Supplier(
+        id="sup_verex",
+        name="VEREX Transmodal",
+        category="terminal_intermodal",
+        contact_name="Operaciones VEREX",
+        contact_email="operaciones@transmodal.com.mx",
+        tariffs=[
+            SupplierTariff(supplier_id="sup_verex", supplier_name="VEREX Transmodal", category="terminal_intermodal",
+                service_name="Veracruz → Ferrovalle", origin="Veracruz", destination="Ferrovalle",
+                container_size="20ft/40ft", cost=35220, includes_return=False, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="FFCC + Inspección sin retorno"),
+            SupplierTariff(supplier_id="sup_verex", supplier_name="VEREX Transmodal", category="terminal_intermodal",
+                service_name="Veracruz → Ferrovalle RT", origin="Veracruz", destination="Ferrovalle",
+                container_size="20ft/40ft", cost=39680, includes_return=True, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="FFCC + Inspección con retorno"),
+            SupplierTariff(supplier_id="sup_verex", supplier_name="VEREX Transmodal", category="terminal_intermodal",
+                service_name="Veracruz → TILH", origin="Veracruz", destination="TILH",
+                container_size="20ft", cost=31330, includes_return=False, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+            SupplierTariff(supplier_id="sup_verex", supplier_name="VEREX Transmodal", category="terminal_intermodal",
+                service_name="Veracruz → TILH", origin="Veracruz", destination="TILH",
+                container_size="40ft", cost=31930, includes_return=False, transit_days=4,
+                validity_start=validity_start, validity_end=validity_end, notes="Sin retorno"),
+        ]
+    )
+    suppliers.append(verex)
+    
+    return suppliers
+
+def get_suppliers():
+    global _suppliers_cache
+    if _suppliers_cache is None:
+        _suppliers_cache = generate_suppliers_with_tariffs()
+    return _suppliers_cache
+
+def reset_suppliers_cache():
+    global _suppliers_cache
+    _suppliers_cache = None
+
 # ==================== ROUTES PRICING DATA ====================
 
 # Lista de proveedores por tipo de transporte
