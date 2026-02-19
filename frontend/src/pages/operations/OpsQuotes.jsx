@@ -15,11 +15,12 @@ import {
   Calculator,
   TrendingUp,
   TrendingDown,
-  Percent,
   AlertCircle,
   MapPin,
   Tag,
-  Package
+  Package,
+  CheckCircle2,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -35,45 +36,20 @@ const STATUS_LABELS = {
   expired: { label: 'Expirada', color: 'bg-amber-100 text-amber-600' }
 };
 
-const MARGIN_OPTIONS = [
-  { value: 30, label: '30%', color: 'bg-emerald-600' },
-  { value: 25, label: '25%', color: 'bg-emerald-500' },
-  { value: 20, label: '20%', color: 'bg-blue-500' },
-  { value: 15, label: '15%', color: 'bg-amber-500' }
-];
-
-// Conceptos de COSTO predefinidos por ruta
-const COST_COMPONENTS = [
-  { id: 'tarifa_base', name: 'Tarifa Base / Flete Marítimo', required: true },
-  { id: 'flete_ferroviario', name: 'Flete Ferroviario', required: false },
-  { id: 'flete_terrestre', name: 'Flete Terrestre / Última Milla', required: false },
-  { id: 'maniobras_portuarias', name: 'Maniobras Terminal Portuaria', required: false },
-  { id: 'maniobras_intermodal', name: 'Maniobras Terminal Intermodal', required: false },
-  { id: 'despacho_aduanal', name: 'Despacho Aduanal', required: false },
-  { id: 'seguro', name: 'Seguro de Carga', required: false },
-  { id: 'almacenaje', name: 'Almacenaje', required: false },
-  { id: 'documentacion', name: 'Gestión Documental', required: false },
-];
-
-// Servicios de VENTA que se pueden agregar
-const SALE_SERVICES = [
-  { id: 'flete_internacional', name: 'Flete Internacional', defaultType: 'tarifa' },
-  { id: 'flete_nacional', name: 'Flete Nacional', defaultType: 'tarifa' },
-  { id: 'despacho_aduanal', name: 'Despacho Aduanal', defaultType: 'tarifa' },
-  { id: 'maniobras', name: 'Maniobras', defaultType: 'tarifa' },
-  { id: 'seguro', name: 'Seguro de Carga', defaultType: 'tarifa' },
-  { id: 'almacenaje', name: 'Almacenaje', defaultType: 'extra' },
-  { id: 'demoras', name: 'Demoras', defaultType: 'extra' },
-  { id: 'inspeccion', name: 'Inspección', defaultType: 'extra' },
-  { id: 'fumigacion', name: 'Fumigación', defaultType: 'extra' },
-  { id: 'revalidacion', name: 'Revalidación', defaultType: 'extra' },
-  { id: 'custodia', name: 'Custodia', defaultType: 'extra' },
-  { id: 'previo', name: 'Previo', defaultType: 'extra' },
+// Conceptos de costos extra que comercial puede agregar
+const EXTRA_COSTS = [
+  { id: 'almacenaje', name: 'Almacenaje' },
+  { id: 'demoras', name: 'Demoras' },
+  { id: 'inspeccion', name: 'Inspección' },
+  { id: 'fumigacion', name: 'Fumigación' },
+  { id: 'revalidacion', name: 'Revalidación' },
+  { id: 'custodia', name: 'Custodia' },
+  { id: 'previo', name: 'Previo' },
 ];
 
 export default function OpsQuotes() {
   const [quotes, setQuotes] = useState([]);
-  const [routes, setRoutes] = useState([]);
+  const [tariffs, setTariffs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewQuote, setShowNewQuote] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState(null);
@@ -86,22 +62,15 @@ export default function OpsQuotes() {
   const [isNewClient, setIsNewClient] = useState(false);
   const [notes, setNotes] = useState('');
   
-  // Route
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [showRouteSelector, setShowRouteSelector] = useState(false);
-  const [routeSearchQuery, setRouteSearchQuery] = useState('');
+  // Tariff selection
+  const [selectedTariff, setSelectedTariff] = useState(null);
+  const [showTariffSelector, setShowTariffSelector] = useState(false);
+  const [tariffSearchQuery, setTariffSearchQuery] = useState('');
   
-  // COSTS - Predefined by route
-  const [costItems, setCostItems] = useState([]);
-  const [showCostSelector, setShowCostSelector] = useState(false);
-  
-  // SALES - Services to charge client
-  const [saleItems, setSaleItems] = useState([]);
-  const [showSaleSelector, setShowSaleSelector] = useState(false);
-  const [customSaleName, setCustomSaleName] = useState('');
-  
-  // Margin
-  const [selectedMargin, setSelectedMargin] = useState(25);
+  // Extra services (optional charges)
+  const [extraServices, setExtraServices] = useState([]);
+  const [showExtraSelector, setShowExtraSelector] = useState(false);
+  const [customExtraName, setCustomExtraName] = useState('');
 
   useEffect(() => {
     loadData();
@@ -110,12 +79,12 @@ export default function OpsQuotes() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [quotesRes, routesRes] = await Promise.all([
+      const [quotesRes, tariffsRes] = await Promise.all([
         api.get('/ops/quotes'),
-        api.get('/ops/pricing/routes')
+        api.get('/ops/pricing/tariffs')
       ]);
       setQuotes(quotesRes.data.quotes);
-      setRoutes(routesRes.data.routes);
+      setTariffs(tariffsRes.data.tariffs);
     } catch (error) {
       toast.error('Error al cargar datos');
     } finally {
@@ -131,149 +100,66 @@ export default function OpsQuotes() {
     }).format(value);
   };
 
-  // Select route and initialize cost items
-  const selectRoute = (route) => {
-    setSelectedRoute(route);
-    
-    // Initialize cost items with tarifa base from route
-    const initialCosts = [
-      {
-        id: 'tarifa_base_' + Date.now(),
-        concept_id: 'tarifa_base',
-        name: 'Tarifa Base / Flete Marítimo',
-        amount: route.avg_cost || route.min_cost || 0,
-        required: true
-      }
-    ];
-    setCostItems(initialCosts);
-    
-    setShowRouteSelector(false);
-    toast.success('Ruta seleccionada - Agrega los costos de la operación');
+  // Select tariff
+  const selectTariff = (tariff) => {
+    setSelectedTariff(tariff);
+    setShowTariffSelector(false);
+    toast.success('Tarifa pre-aprobada seleccionada');
   };
 
-  // Add cost item
-  const addCostItem = (concept) => {
-    const exists = costItems.find(c => c.concept_id === concept.id);
-    if (exists) {
-      toast.error('Este concepto ya está agregado');
-      return;
-    }
-    
+  // Add extra service
+  const addExtraService = (service, isCustom = false) => {
     const newItem = {
-      id: concept.id + '_' + Date.now(),
-      concept_id: concept.id,
-      name: concept.name,
-      amount: 0,
-      required: concept.required
+      id: (isCustom ? 'custom' : service.id) + '_' + Date.now(),
+      name: isCustom ? customExtraName : service.name,
+      amount: 0
     };
-    setCostItems([...costItems, newItem]);
-    setShowCostSelector(false);
-    toast.success('Costo agregado');
+    setExtraServices([...extraServices, newItem]);
+    setShowExtraSelector(false);
+    setCustomExtraName('');
+    toast.success('Servicio extra agregado');
   };
 
-  // Add custom cost
-  const addCustomCost = (name) => {
-    const newItem = {
-      id: 'custom_' + Date.now(),
-      concept_id: 'custom',
-      name: name,
-      amount: 0,
-      required: false
-    };
-    setCostItems([...costItems, newItem]);
-    setShowCostSelector(false);
-  };
-
-  // Update cost
-  const updateCostItem = (itemId, amount) => {
-    setCostItems(costItems.map(item => 
+  // Update extra service
+  const updateExtraService = (itemId, amount) => {
+    setExtraServices(extraServices.map(item => 
       item.id === itemId ? { ...item, amount: parseFloat(amount) || 0 } : item
     ));
   };
 
-  // Remove cost
-  const removeCostItem = (itemId) => {
-    const item = costItems.find(c => c.id === itemId);
-    if (item?.required) {
-      toast.error('No se puede eliminar la tarifa base');
-      return;
-    }
-    setCostItems(costItems.filter(c => c.id !== itemId));
-  };
-
-  // Add sale item
-  const addSaleItem = (service, isCustom = false, type = 'tarifa') => {
-    const newItem = {
-      id: (isCustom ? 'custom' : service.id) + '_' + Date.now(),
-      service_id: isCustom ? 'custom' : service.id,
-      name: isCustom ? customSaleName : service.name,
-      type: isCustom ? type : service.defaultType, // 'tarifa' or 'extra'
-      amount: 0
-    };
-    setSaleItems([...saleItems, newItem]);
-    setShowSaleSelector(false);
-    setCustomSaleName('');
-    toast.success('Servicio agregado');
-  };
-
-  // Update sale item
-  const updateSaleItem = (itemId, field, value) => {
-    setSaleItems(saleItems.map(item => 
-      item.id === itemId ? { ...item, [field]: field === 'amount' ? parseFloat(value) || 0 : value } : item
-    ));
-  };
-
-  // Remove sale item
-  const removeSaleItem = (itemId) => setSaleItems(saleItems.filter(s => s.id !== itemId));
-
-  // Toggle sale item type
-  const toggleSaleType = (itemId) => {
-    setSaleItems(saleItems.map(item => 
-      item.id === itemId ? { ...item, type: item.type === 'tarifa' ? 'extra' : 'tarifa' } : item
-    ));
-  };
+  // Remove extra service
+  const removeExtraService = (itemId) => setExtraServices(extraServices.filter(s => s.id !== itemId));
 
   // Calculate totals
   const calculateTotals = () => {
-    // Total de costos
-    const totalCostos = costItems.reduce((sum, item) => sum + item.amount, 0);
+    if (!selectedTariff) return { totalCost: 0, totalSale: 0, totalExtras: 0, utilidad: 0, iva: 0, total: 0 };
     
-    // Precio de venta con margen
-    const marginDecimal = selectedMargin / 100;
-    const precioVentaSugerido = totalCostos > 0 ? totalCostos / (1 - marginDecimal) : 0;
+    const totalCost = selectedTariff.total_cost || 0;
+    const totalSaleTarifa = selectedTariff.total_sale || selectedTariff.sale_price || 0;
+    const totalExtras = extraServices.reduce((sum, s) => sum + s.amount, 0);
+    const totalSale = totalSaleTarifa + totalExtras;
     
-    // Ventas por tipo
-    const ventasTarifa = saleItems
-      .filter(s => s.type === 'tarifa')
-      .reduce((sum, item) => sum + item.amount, 0);
-    const ventasExtra = saleItems
-      .filter(s => s.type === 'extra')
-      .reduce((sum, item) => sum + item.amount, 0);
-    const totalVentas = ventasTarifa + ventasExtra;
+    // Para extras, aplicar el mismo margen de la tarifa
+    const marginPercent = selectedTariff.margin_percent || 20;
+    const costExtras = totalExtras * (1 - marginPercent / 100);
+    const totalCostWithExtras = totalCost + costExtras;
     
-    // Si no hay items de venta, usar precio sugerido
-    const precioVentaFinal = totalVentas > 0 ? totalVentas : precioVentaSugerido;
+    const utilidad = totalSale - totalCostWithExtras;
+    const margenReal = totalSale > 0 ? (utilidad / totalSale * 100) : 0;
     
-    // Utilidad
-    const utilidadTotal = precioVentaFinal - totalCostos;
-    const margenReal = precioVentaFinal > 0 ? (utilidadTotal / precioVentaFinal * 100) : 0;
+    const iva = totalSale * 0.16;
+    const total = totalSale + iva;
     
-    // IVA
-    const iva = precioVentaFinal * 0.16;
-    const totalConIva = precioVentaFinal + iva;
-    
-    return {
-      totalCostos,
-      precioVentaSugerido,
-      ventasTarifa,
-      ventasExtra,
-      totalVentas,
-      precioVentaFinal,
-      utilidadTotal,
+    return { 
+      totalCost, 
+      totalCostWithExtras,
+      totalSaleTarifa, 
+      totalExtras, 
+      totalSale, 
+      utilidad, 
       margenReal,
-      margenObjetivo: selectedMargin,
-      iva,
-      totalConIva
+      iva, 
+      total 
     };
   };
 
@@ -282,43 +168,49 @@ export default function OpsQuotes() {
       toast.error('Ingresa el nombre del cliente');
       return;
     }
-    if (!selectedRoute) {
-      toast.error('Selecciona una ruta');
-      return;
-    }
-    if (costItems.length === 0) {
-      toast.error('Agrega al menos un costo');
+    if (!selectedTariff) {
+      toast.error('Selecciona una tarifa');
       return;
     }
 
     const totals = calculateTotals();
 
     try {
+      // Crear items de la cotización basados en la tarifa pre-aprobada
+      const items = [
+        ...(selectedTariff.sale_services || []).map(svc => ({
+          item_type: svc.type,
+          description: svc.name,
+          category: svc.type,
+          quantity: 1,
+          unit_price: svc.amount,
+          unit_cost: 0
+        })),
+        ...extraServices.map(extra => ({
+          item_type: 'extra',
+          description: extra.name,
+          category: 'extra',
+          quantity: 1,
+          unit_price: extra.amount,
+          unit_cost: 0
+        }))
+      ];
+
       const response = await api.post('/ops/quotes', {
         client_name: clientName,
         client_email: clientEmail,
         client_phone: clientPhone,
         is_new_client: isNewClient,
-        route_id: selectedRoute.id,
-        route_description: `${selectedRoute.origin} → ${selectedRoute.destination}`,
-        cost_items: costItems.map(item => ({
-          description: item.name,
-          amount: item.amount
-        })),
-        items: saleItems.map(item => ({
-          item_type: item.type,
-          description: item.name,
-          category: item.type,
-          quantity: 1,
-          unit_price: item.amount,
-          unit_cost: 0
-        })),
-        subtotal: totals.precioVentaFinal,
-        total_cost: totals.totalCostos,
-        margin: totals.utilidadTotal,
+        route_id: selectedTariff.route_id,
+        route_description: `${selectedTariff.origin} → ${selectedTariff.destination}`,
+        tariff_id: selectedTariff.id,
+        items: items,
+        subtotal: totals.totalSale,
+        total_cost: totals.totalCostWithExtras,
+        margin: totals.utilidad,
         margin_percent: totals.margenReal,
         tax_amount: totals.iva,
-        total: totals.totalConIva,
+        total: totals.total,
         notes: notes
       });
 
@@ -336,10 +228,8 @@ export default function OpsQuotes() {
     setClientEmail('');
     setClientPhone('');
     setIsNewClient(false);
-    setSelectedRoute(null);
-    setCostItems([]);
-    setSaleItems([]);
-    setSelectedMargin(25);
+    setSelectedTariff(null);
+    setExtraServices([]);
     setNotes('');
   };
 
@@ -350,12 +240,12 @@ export default function OpsQuotes() {
     }, 100);
   };
 
-  // Filter routes
-  const filteredRoutes = routes.filter(route => {
-    const searchLower = routeSearchQuery.toLowerCase();
-    return route.origin.toLowerCase().includes(searchLower) ||
-           route.destination.toLowerCase().includes(searchLower) ||
-           route.transport_mode.toLowerCase().includes(searchLower);
+  // Filter tariffs
+  const filteredTariffs = tariffs.filter(tariff => {
+    const searchLower = tariffSearchQuery.toLowerCase();
+    return tariff.origin.toLowerCase().includes(searchLower) ||
+           tariff.destination.toLowerCase().includes(searchLower) ||
+           tariff.transport_mode.toLowerCase().includes(searchLower);
   });
 
   const totals = calculateTotals();
@@ -374,7 +264,7 @@ export default function OpsQuotes() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Cotizaciones</h1>
-          <p className="text-slate-500">Crea cotizaciones con análisis de utilidad</p>
+          <p className="text-slate-500">Genera cotizaciones a partir de tarifas pre-aprobadas</p>
         </div>
         <Button onClick={() => setShowNewQuote(true)} className="bg-blue-600 hover:bg-blue-700" data-testid="new-quote-btn">
           <Plus className="w-4 h-4 mr-2" />
@@ -403,7 +293,6 @@ export default function OpsQuotes() {
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Cliente</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Ruta</th>
                       <th className="text-left py-3 px-4 text-xs font-medium text-slate-500">Estado</th>
-                      <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Costo</th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Venta</th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Utilidad</th>
                       <th className="text-right py-3 px-4 text-xs font-medium text-slate-500">Margen</th>
@@ -430,9 +319,6 @@ export default function OpsQuotes() {
                               {status.label}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right text-sm text-red-600">
-                            {formatCurrency(quote.total_cost || 0)}
-                          </td>
                           <td className="py-3 px-4 text-right text-sm font-medium text-slate-800">
                             {formatCurrency(quote.subtotal || 0)}
                           </td>
@@ -441,8 +327,8 @@ export default function OpsQuotes() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              margin >= 25 ? 'bg-emerald-100 text-emerald-700' :
-                              margin >= 20 ? 'bg-blue-100 text-blue-700' :
+                              margin >= 20 ? 'bg-emerald-100 text-emerald-700' :
+                              margin >= 15 ? 'bg-blue-100 text-blue-700' :
                               'bg-amber-100 text-amber-700'
                             }`}>
                               {margin.toFixed(0)}%
@@ -533,216 +419,164 @@ export default function OpsQuotes() {
             </CardContent>
           </Card>
 
-          {/* Route Selection */}
-          <Card className={`bg-white shadow-sm ${selectedRoute ? 'border-emerald-300 border-2' : 'border-red-300 border-2'}`}>
+          {/* Tariff Selection */}
+          <Card className={`bg-white shadow-sm ${selectedTariff ? 'border-emerald-400 border-2' : 'border-red-300 border-2'}`}>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <Ship className="w-5 h-5 text-blue-600" />
-                  <CardTitle className="text-slate-800">Ruta *</CardTitle>
-                  {!selectedRoute && (
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                  <CardTitle className="text-slate-800">Tarifa Pre-aprobada *</CardTitle>
+                  {!selectedTariff && (
                     <span className="flex items-center gap-1 text-red-500 text-sm">
                       <AlertCircle className="w-4 h-4" /> Requerido
                     </span>
                   )}
                 </div>
-                <Button onClick={() => setShowRouteSelector(true)} variant="outline" data-testid="select-route-btn">
+                <Button onClick={() => setShowTariffSelector(true)} variant="outline" data-testid="select-tariff-btn">
                   <MapPin className="w-4 h-4 mr-1" />
-                  {selectedRoute ? 'Cambiar Ruta' : 'Seleccionar Ruta'}
+                  {selectedTariff ? 'Cambiar Tarifa' : 'Seleccionar Tarifa'}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {selectedRoute ? (
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-lg font-bold text-slate-800">
-                    {selectedRoute.origin} → {selectedRoute.destination}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {selectedRoute.transport_mode} • {selectedRoute.container_size} • {selectedRoute.transit_days} días
-                  </p>
+              {selectedTariff ? (
+                <div className="space-y-4">
+                  {/* Tariff Header */}
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          <p className="text-lg font-bold text-slate-800">
+                            {selectedTariff.origin} → {selectedTariff.destination}
+                          </p>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {selectedTariff.transport_mode} • {selectedTariff.container_size} • {selectedTariff.transit_days} días
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Vigencia: {selectedTariff.validity_start} al {selectedTariff.validity_end}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-slate-500">Tarifa de Venta</p>
+                        <p className="text-2xl font-bold text-emerald-600">{formatCurrency(selectedTariff.total_sale || selectedTariff.sale_price)}</p>
+                        <p className="text-xs text-slate-400">Margen: {selectedTariff.margin_percent}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cost Breakdown (readonly) */}
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingDown className="w-4 h-4 text-red-600" />
+                      <p className="text-sm font-medium text-red-700">Costos Considerados (referencia)</p>
+                    </div>
+                    <div className="space-y-1">
+                      {selectedTariff.cost_components?.map((comp, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-slate-600">
+                            {comp.is_base && <Tag className="w-3 h-3 inline mr-1" />}
+                            {comp.name}
+                          </span>
+                          <span className="text-red-600 font-medium">{formatCurrency(comp.amount)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-red-200 mt-2">
+                        <span className="text-red-800">Total Costo:</span>
+                        <span className="text-red-700">{formatCurrency(selectedTariff.total_cost)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sale Services Breakdown */}
+                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="w-4 h-4 text-emerald-600" />
+                      <p className="text-sm font-medium text-emerald-700">Desglose para el Cliente</p>
+                    </div>
+                    <div className="space-y-1">
+                      {selectedTariff.sale_services?.map((svc, i) => (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span className="text-slate-600">
+                            <span className={`px-1.5 py-0.5 rounded text-xs mr-2 ${
+                              svc.type === 'tarifa' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {svc.type === 'tarifa' ? 'Tarifa' : 'Extra'}
+                            </span>
+                            {svc.name}
+                          </span>
+                          <span className="text-emerald-600 font-medium">{formatCurrency(svc.amount)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-emerald-200 mt-2">
+                        <span className="text-emerald-800">Total Tarifa:</span>
+                        <span className="text-emerald-700">{formatCurrency(selectedTariff.total_sale || selectedTariff.sale_price)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 bg-slate-50 rounded-lg text-center border-2 border-dashed border-slate-300">
                   <Ship className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-500">Selecciona una ruta</p>
+                  <p className="text-slate-500">Selecciona una tarifa pre-aprobada del catálogo</p>
+                  <p className="text-slate-400 text-sm mt-1">Las tarifas incluyen los costos y precios ya calculados</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* COSTS Section */}
-          {selectedRoute && (
-            <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-red-500">
+          {/* Extra Services (Optional) */}
+          {selectedTariff && (
+            <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-amber-500">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <TrendingDown className="w-5 h-5 text-red-600" />
-                    <CardTitle className="text-red-700">Costos de la Operación</CardTitle>
+                    <Package className="w-5 h-5 text-amber-600" />
+                    <CardTitle className="text-amber-700">Servicios Extra (Opcionales)</CardTitle>
                   </div>
-                  <Button size="sm" onClick={() => setShowCostSelector(true)} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50" data-testid="add-cost-btn">
+                  <Button size="sm" onClick={() => setShowExtraSelector(true)} variant="outline" className="border-amber-300 text-amber-600 hover:bg-amber-50" data-testid="add-extra-btn">
                     <Plus className="w-4 h-4 mr-1" />
-                    Agregar Costo
+                    Agregar Extra
                   </Button>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">Define los costos de esta operación según la ruta</p>
+                <p className="text-sm text-slate-500 mt-1">Cargos adicionales que pueden o no generarse en la operación</p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {costItems.map((item) => (
-                    <div key={item.id} className={`p-3 rounded-lg border flex justify-between items-center ${
-                      item.required ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-700 font-medium">{item.name}</span>
-                        {item.required && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">Base</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-36">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.amount}
-                            onChange={(e) => updateCostItem(item.id, e.target.value)}
-                            className="text-right h-9"
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <span className="font-bold text-red-600 w-32 text-right">{formatCurrency(item.amount)}</span>
-                        {!item.required && (
-                          <button onClick={() => removeCostItem(item.id)} className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        {item.required && <div className="w-4" />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Cost Total */}
-                <div className="mt-4 p-4 bg-red-100 rounded-lg border border-red-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-red-800 font-bold text-lg">Total Costos:</span>
-                    <span className="text-red-700 font-bold text-2xl">{formatCurrency(totals.totalCostos)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Margin Selector */}
-          {selectedRoute && totals.totalCostos > 0 && (
-            <Card className="bg-white border-slate-200 shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Percent className="w-5 h-5 text-purple-600" />
-                  <CardTitle className="text-slate-800">Margen de Utilidad Objetivo</CardTitle>
-                </div>
-                <p className="text-sm text-slate-500">Precio de venta sugerido: <span className="font-bold text-slate-700">{formatCurrency(totals.precioVentaSugerido)}</span></p>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  {MARGIN_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setSelectedMargin(option.value)}
-                      className={`flex-1 py-4 px-6 rounded-xl font-bold text-xl transition-all ${
-                        selectedMargin === option.value
-                          ? `${option.color} text-white shadow-lg scale-105`
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                      data-testid={`margin-${option.value}`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* SALES Section */}
-          {selectedRoute && totals.totalCostos > 0 && (
-            <Card className="bg-white border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
-                    <CardTitle className="text-emerald-700">Servicios de Venta (Tarifa al Cliente)</CardTitle>
-                  </div>
-                  <Button size="sm" onClick={() => setShowSaleSelector(true)} className="bg-emerald-600 hover:bg-emerald-700" data-testid="add-sale-btn">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Agregar Servicio
-                  </Button>
-                </div>
-                <p className="text-sm text-slate-500 mt-1">
-                  Agrega los servicios a cobrar. <span className="text-blue-600 font-medium">Tarifa</span> = incluido en precio base, 
-                  <span className="text-amber-600 font-medium"> Extra</span> = cargo adicional que puede o no generarse
-                </p>
-              </CardHeader>
-              <CardContent>
-                {saleItems.length === 0 ? (
-                  <div className="p-6 bg-emerald-50 rounded-lg text-center border border-emerald-200">
-                    <Package className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-                    <p className="text-emerald-600 text-sm">Agrega servicios para desglosar la cotización al cliente</p>
-                    <p className="text-emerald-500 text-xs mt-1">Si no agregas servicios, se usará el precio sugerido: {formatCurrency(totals.precioVentaSugerido)}</p>
+                {extraServices.length === 0 ? (
+                  <div className="p-4 bg-amber-50 rounded-lg text-center border border-amber-200">
+                    <p className="text-amber-600 text-sm">Sin servicios extra - la cotización usará solo la tarifa base</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {saleItems.map((item) => (
-                      <div key={item.id} className={`p-3 rounded-lg border flex justify-between items-center ${
-                        item.type === 'tarifa' ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'
-                      }`}>
+                    {extraServices.map((service) => (
+                      <div key={service.id} className="p-3 bg-amber-50 rounded-lg border border-amber-200 flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-700 font-medium">{item.name}</span>
-                          <button
-                            onClick={() => toggleSaleType(item.id)}
-                            className={`px-2 py-0.5 rounded text-xs font-medium cursor-pointer transition-colors ${
-                              item.type === 'tarifa' 
-                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                                : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                            }`}
-                          >
-                            {item.type === 'tarifa' ? 'Tarifa' : 'Extra'} ↔
-                          </button>
+                          <span className="text-slate-700 font-medium">{service.name}</span>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="w-36">
                             <Input
                               type="number"
                               step="0.01"
-                              value={item.amount}
-                              onChange={(e) => updateSaleItem(item.id, 'amount', e.target.value)}
+                              value={service.amount}
+                              onChange={(e) => updateExtraService(service.id, e.target.value)}
                               className="text-right h-9"
                               placeholder="0.00"
                             />
                           </div>
-                          <span className={`font-bold w-32 text-right ${
-                            item.type === 'tarifa' ? 'text-blue-600' : 'text-amber-600'
-                          }`}>{formatCurrency(item.amount)}</span>
-                          <button onClick={() => removeSaleItem(item.id)} className="text-red-400 hover:text-red-600">
+                          <span className="font-bold text-amber-600 w-32 text-right">{formatCurrency(service.amount)}</span>
+                          <button onClick={() => removeExtraService(service.id)} className="text-red-400 hover:text-red-600">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
                     ))}
-                    
-                    {/* Sales Subtotals */}
-                    <div className="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Servicios Tarifa (incluidos):</span>
-                        <span className="font-medium text-blue-600">{formatCurrency(totals.ventasTarifa)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-600">Servicios Extra (adicionales):</span>
-                        <span className="font-medium text-amber-600">{formatCurrency(totals.ventasExtra)}</span>
-                      </div>
-                      <div className="flex justify-between text-lg font-bold border-t border-emerald-200 mt-2 pt-2">
-                        <span className="text-emerald-800">Total Venta:</span>
-                        <span className="text-emerald-700">{formatCurrency(totals.totalVentas)}</span>
+                    <div className="p-3 bg-amber-100 rounded-lg border border-amber-300 mt-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-amber-800 font-medium">Total Extras:</span>
+                        <span className="text-amber-700 font-bold text-lg">{formatCurrency(totals.totalExtras)}</span>
                       </div>
                     </div>
                   </div>
@@ -752,7 +586,7 @@ export default function OpsQuotes() {
           )}
 
           {/* Summary */}
-          {selectedRoute && totals.totalCostos > 0 && (
+          {selectedTariff && (
             <Card className="bg-gradient-to-r from-slate-800 to-slate-700 border-0 shadow-lg">
               <CardHeader className="pb-2">
                 <CardTitle className="text-white flex items-center gap-2">
@@ -763,49 +597,27 @@ export default function OpsQuotes() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-white/10 rounded-lg p-4">
-                    <p className="text-slate-300 text-xs mb-1">Total Costos</p>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(totals.totalCostos)}</p>
+                    <p className="text-slate-300 text-xs mb-1">Tarifa Base</p>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(totals.totalSaleTarifa)}</p>
+                    <p className="text-slate-400 text-xs mt-1">Costo: {formatCurrency(totals.totalCost)}</p>
                   </div>
                   <div className="bg-white/10 rounded-lg p-4">
-                    <p className="text-slate-300 text-xs mb-1">Precio de Venta</p>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(totals.precioVentaFinal)}</p>
-                    {saleItems.length === 0 && (
-                      <p className="text-slate-400 text-xs mt-1">Sugerido al {selectedMargin}%</p>
-                    )}
+                    <p className="text-slate-300 text-xs mb-1">+ Extras</p>
+                    <p className="text-2xl font-bold text-amber-400">{formatCurrency(totals.totalExtras)}</p>
                   </div>
                   <div className="bg-white/10 rounded-lg p-4">
                     <p className="text-slate-300 text-xs mb-1">Utilidad</p>
-                    <p className={`text-2xl font-bold ${totals.utilidadTotal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {formatCurrency(totals.utilidadTotal)}
+                    <p className={`text-2xl font-bold ${totals.utilidad >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {formatCurrency(totals.utilidad)}
                     </p>
-                    <p className={`text-xs mt-1 ${
-                      totals.margenReal >= selectedMargin ? 'text-emerald-400' : 'text-amber-400'
-                    }`}>
-                      Margen real: {totals.margenReal.toFixed(1)}%
-                    </p>
+                    <p className="text-slate-400 text-xs mt-1">Margen: {totals.margenReal.toFixed(1)}%</p>
                   </div>
                   <div className="bg-blue-600 rounded-lg p-4">
                     <p className="text-blue-200 text-xs mb-1">Total + IVA (16%)</p>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(totals.totalConIva)}</p>
+                    <p className="text-2xl font-bold text-white">{formatCurrency(totals.total)}</p>
                     <p className="text-blue-200 text-xs mt-1">IVA: {formatCurrency(totals.iva)}</p>
                   </div>
                 </div>
-                
-                {/* Margin comparison */}
-                {saleItems.length > 0 && (
-                  <div className={`mt-4 p-3 rounded-lg ${
-                    totals.margenReal >= selectedMargin 
-                      ? 'bg-emerald-500/20 border border-emerald-500/30' 
-                      : 'bg-amber-500/20 border border-amber-500/30'
-                  }`}>
-                    <p className={`text-sm ${totals.margenReal >= selectedMargin ? 'text-emerald-300' : 'text-amber-300'}`}>
-                      {totals.margenReal >= selectedMargin 
-                        ? `✓ El margen real (${totals.margenReal.toFixed(1)}%) cumple o supera el objetivo (${selectedMargin}%)`
-                        : `⚠ El margen real (${totals.margenReal.toFixed(1)}%) está por debajo del objetivo (${selectedMargin}%)`
-                      }
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
@@ -828,7 +640,7 @@ export default function OpsQuotes() {
                   onClick={handleCreateQuote} 
                   className="bg-blue-600 hover:bg-blue-700" 
                   data-testid="create-quote-btn"
-                  disabled={!selectedRoute || !clientName || totals.totalCostos === 0}
+                  disabled={!selectedTariff || !clientName}
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Crear Cotización
@@ -839,13 +651,16 @@ export default function OpsQuotes() {
         </div>
       )}
 
-      {/* Route Selector Modal */}
-      {showRouteSelector && (
+      {/* Tariff Selector Modal */}
+      {showTariffSelector && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="font-semibold text-slate-800">Seleccionar Ruta</h3>
-              <button onClick={() => setShowRouteSelector(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-purple-50 to-blue-50">
+              <div>
+                <h3 className="font-semibold text-slate-800">Tarifas Pre-aprobadas</h3>
+                <p className="text-sm text-slate-500">Selecciona la tarifa para esta cotización</p>
+              </div>
+              <button onClick={() => setShowTariffSelector(false)}>
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
@@ -854,160 +669,90 @@ export default function OpsQuotes() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Buscar por origen, destino..."
-                  value={routeSearchQuery}
-                  onChange={(e) => setRouteSearchQuery(e.target.value)}
+                  value={tariffSearchQuery}
+                  onChange={(e) => setTariffSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
             </div>
-            <div className="p-4 overflow-y-auto max-h-[55vh]">
-              <div className="grid gap-2">
-                {filteredRoutes.slice(0, 50).map((route) => (
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <div className="grid gap-3">
+                {filteredTariffs.map((tariff) => (
                   <div
-                    key={route.id}
-                    onClick={() => selectRoute(route)}
-                    className="p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors"
+                    key={tariff.id}
+                    onClick={() => selectTariff(tariff)}
+                    className="p-4 border border-slate-200 rounded-xl hover:bg-purple-50 hover:border-purple-300 cursor-pointer transition-all hover:shadow-md"
                   >
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium text-slate-800">{route.origin} → {route.destination}</p>
-                        <p className="text-sm text-slate-500">{route.transport_mode} • {route.container_size} • {route.transit_days} días</p>
+                        <p className="font-bold text-slate-800 text-lg">{tariff.origin} → {tariff.destination}</p>
+                        <p className="text-sm text-slate-500 mt-1">
+                          {tariff.transport_mode} • {tariff.container_size} • {tariff.transit_days} días
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <span className="px-2 py-1 bg-red-50 text-red-600 rounded text-xs">
+                            Costo: {formatCurrency(tariff.total_cost)}
+                          </span>
+                          <span className="px-2 py-1 bg-purple-50 text-purple-600 rounded text-xs">
+                            Margen: {tariff.margin_percent}%
+                          </span>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-slate-400">Costo Promedio</p>
-                        <p className="text-lg font-bold text-blue-600">{formatCurrency(route.avg_cost || route.min_cost || 0)}</p>
+                        <p className="text-xs text-slate-400">Precio de Venta</p>
+                        <p className="text-2xl font-bold text-emerald-600">{formatCurrency(tariff.total_sale || tariff.sale_price)}</p>
                       </div>
                     </div>
                   </div>
                 ))}
+                {filteredTariffs.length === 0 && (
+                  <div className="p-8 text-center text-slate-500">
+                    No se encontraron tarifas
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Cost Selector Modal */}
-      {showCostSelector && (
+      {/* Extra Service Selector Modal */}
+      {showExtraSelector && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[70vh] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-red-50">
-              <h3 className="font-semibold text-red-800">Agregar Concepto de Costo</h3>
-              <button onClick={() => setShowCostSelector(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[60vh] overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-amber-50">
+              <h3 className="font-semibold text-amber-800">Agregar Servicio Extra</h3>
+              <button onClick={() => setShowExtraSelector(false)}>
                 <X className="w-5 h-5 text-slate-500" />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto max-h-[50vh]">
+            <div className="p-4 overflow-y-auto max-h-[40vh]">
               <div className="grid gap-2">
-                {COST_COMPONENTS.filter(c => !c.required).map((concept) => {
-                  const isAdded = costItems.some(ci => ci.concept_id === concept.id);
-                  return (
-                    <div
-                      key={concept.id}
-                      onClick={() => !isAdded && addCostItem(concept)}
-                      className={`p-3 border rounded-lg transition-colors flex justify-between items-center ${
-                        isAdded 
-                          ? 'bg-slate-100 border-slate-200 cursor-not-allowed' 
-                          : 'border-slate-200 hover:bg-red-50 hover:border-red-300 cursor-pointer'
-                      }`}
-                    >
-                      <span className={isAdded ? 'text-slate-400' : 'text-slate-700'}>{concept.name}</span>
-                      {isAdded && <span className="text-xs text-slate-400">Ya agregado</span>}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Custom cost */}
-              <div className="pt-4 mt-4 border-t border-slate-200">
-                <p className="text-sm font-medium text-slate-500 mb-2">Costo personalizado</p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nombre del costo..."
-                    id="customCostInput"
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      const input = document.getElementById('customCostInput');
-                      if (input.value) {
-                        addCustomCost(input.value);
-                        input.value = '';
-                      }
-                    }}
-                    className="bg-red-600 hover:bg-red-700"
+                {EXTRA_COSTS.map((service) => (
+                  <div
+                    key={service.id}
+                    onClick={() => addExtraService(service)}
+                    className="p-3 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-colors flex justify-between items-center"
                   >
-                    Agregar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sale Service Selector Modal */}
-      {showSaleSelector && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[70vh] overflow-hidden">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-emerald-50">
-              <h3 className="font-semibold text-emerald-800">Agregar Servicio de Venta</h3>
-              <button onClick={() => setShowSaleSelector(false)}>
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto max-h-[50vh]">
-              {/* Tarifa services */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-blue-600 mb-2 flex items-center gap-1">
-                  <Tag className="w-4 h-4" /> Servicios de Tarifa (incluidos en precio base)
-                </h4>
-                <div className="grid gap-2">
-                  {SALE_SERVICES.filter(s => s.defaultType === 'tarifa').map((service) => (
-                    <div
-                      key={service.id}
-                      onClick={() => addSaleItem(service)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{service.name}</span>
-                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Tarifa</span>
-                    </div>
-                  ))}
-                </div>
+                    <span className="text-slate-700">{service.name}</span>
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
+                  </div>
+                ))}
               </div>
               
-              {/* Extra services */}
-              <div className="mb-4">
-                <h4 className="text-sm font-medium text-amber-600 mb-2 flex items-center gap-1">
-                  <Plus className="w-4 h-4" /> Servicios Extra (cargos adicionales)
-                </h4>
-                <div className="grid gap-2">
-                  {SALE_SERVICES.filter(s => s.defaultType === 'extra').map((service) => (
-                    <div
-                      key={service.id}
-                      onClick={() => addSaleItem(service)}
-                      className="p-3 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-colors flex justify-between items-center"
-                    >
-                      <span className="text-slate-700">{service.name}</span>
-                      <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs">Extra</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Custom service */}
-              <div className="pt-4 border-t border-slate-200">
+              <div className="pt-4 mt-4 border-t border-slate-200">
                 <p className="text-sm font-medium text-slate-500 mb-2">Servicio personalizado</p>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Nombre del servicio..."
-                    value={customSaleName}
-                    onChange={(e) => setCustomSaleName(e.target.value)}
+                    value={customExtraName}
+                    onChange={(e) => setCustomExtraName(e.target.value)}
                     className="flex-1"
                   />
                   <Button 
-                    onClick={() => customSaleName && addSaleItem(null, true, 'tarifa')}
-                    disabled={!customSaleName}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => customExtraName && addExtraService(null, true)}
+                    disabled={!customExtraName}
+                    className="bg-amber-600 hover:bg-amber-700"
                   >
                     Agregar
                   </Button>
