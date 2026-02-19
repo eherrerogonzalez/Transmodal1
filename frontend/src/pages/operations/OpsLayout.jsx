@@ -20,7 +20,7 @@ const navItems = [
   { path: '/ops/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/ops/containers', icon: Package, label: 'Contenedores' },
   { path: '/ops/pricing', icon: Calculator, label: 'Pricing' },
-  { path: '/ops/quotes', icon: FileText, label: 'Cotizaciones' },
+  { path: '/ops/quotes', icon: FileText, label: 'Contratos' },
   { path: '/ops/suppliers', icon: Building2, label: 'Proveedores' },
   { path: '/ops/clients', icon: Users, label: 'Clientes' },
 ];
