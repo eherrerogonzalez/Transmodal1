@@ -3670,13 +3670,56 @@ class ProfitabilityDashboard(BaseModel):
 
 # ==================== PRICING/QUOTES MODULE - MODELS ====================
 
+# Tipos de proveedores
+SUPPLIER_CATEGORIES = {
+    "ferrocarril": "Ferrocarril",
+    "terminal_portuaria": "Terminal Portuaria", 
+    "transportista": "Transportista",
+    "custodia": "Custodia",
+    "terminal_intermodal": "Terminal Intermodal",
+    "naviera": "Naviera",
+    "agente_aduanal": "Agente Aduanal"
+}
+
+class SupplierTariff(BaseModel):
+    """Tarifa de un proveedor específico"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    supplier_id: str
+    supplier_name: str
+    category: str  # ferrocarril, terminal_portuaria, transportista, custodia, terminal_intermodal
+    service_name: str  # Nombre del servicio
+    origin: Optional[str] = None
+    destination: Optional[str] = None
+    container_size: Optional[str] = None  # 20ft, 40ft, 40ft HC, 53ft
+    unit: str = "por_contenedor"  # por_contenedor, por_dia, por_tonelada, fijo
+    cost: float
+    currency: str = "MXN"
+    includes_return: bool = False  # Para ferrocarril
+    is_imo: bool = False  # Carga peligrosa
+    transit_days: Optional[int] = None
+    validity_start: str = ""
+    validity_end: str = ""
+    notes: Optional[str] = None
+
+class Supplier(BaseModel):
+    """Proveedor con sus tarifas"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    category: str
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    address: Optional[str] = None
+    active: bool = True
+    tariffs: List[SupplierTariff] = []
+
 class SupplierQuote(BaseModel):
     """Cotización de un proveedor para una ruta"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     supplier_name: str
     supplier_type: str  # naviera, ferroviaria, transportista
     cost: float
-    currency: str = "USD"
+    currency: str = "MXN"
     transit_days: int
     validity_start: str
     validity_end: str
