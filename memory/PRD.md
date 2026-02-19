@@ -135,12 +135,46 @@ Portal separado para ejecutivos de operaciones con:
   - **Desglose de Costos**: Flete marítimo/ferroviario, maniobras, arrastre, aduanales, estadías, demoras
   - **Desglose de Ingresos**: Flete cobrado, servicios adicionales
 
-### Módulo de Pricing (`/ops/pricing`)
-- **Tab Rutas**: Filtros por origen, destino, modo, tamaño
-  - Tabla con: Modo, Origen, Destino, Contenedor, Costo, Precio Sugerido, Margen, Días, Vigencia
-  - **Formulario Nueva Ruta**: Origen, Destino, Modo transporte, Tamaño contenedor, Costo base, Precio sugerido, Días tránsito, Margen calculado automático, Notas
-- **Tab Servicios Adicionales**: Cards con código, nombre, descripción, costo y precio
-  - **Formulario Nuevo Servicio**: Código, Nombre, Unidad de cobro (por contenedor/día/tonelada/fijo), Descripción, Costo base, Precio sugerido, Margen calculado automático
+### Módulo de Pricing (`/ops/pricing`) - ACTUALIZADO ✅ (Feb 19, 2026)
+
+#### **Tarifas Reales de Transmodal Implementadas**
+Se reemplazaron los datos mock con las **42 tarifas reales** de Transmodal:
+
+**Veracruz:**
+- FFCC Importación (20'/40'): Sin retorno, con retorno, IMO
+- FFCC Exportación (20'/40')
+- VEREX (FFCC + Inspección): Ferrovalle, TILH
+- SPF (Camión RT): Sencillo, Full
+
+**Manzanillo:**
+- FFCC Importación (20'/40'): Sin retorno, con retorno, IMO
+- FFCC Exportación (20'/40')
+- SPF (Camión RT): Sencillo, Full
+
+**Lázaro Cárdenas:**
+- FFCC Importación (20'/40'): Sin retorno, con retorno
+- FFCC Exportación (20'/40')
+- SPF (Camión RT): Sencillo, Full
+
+**Rutas Nacionales:**
+- FFCC Nacional: Mexicali ↔ CDMX, Cd. Obregón ↔ CDMX
+- Distribución: Guadalajara ↔ México, Monterrey ↔ México, Veracruz → México
+
+**Mejoras en UI:**
+- Etiquetas **+Retorno** (verde) e **IMO** (naranja) para distinguir tipos
+- Notas descriptivas debajo de cada ruta
+- Filas IMO con fondo naranja suave
+- Moneda en **MXN** (Pesos Mexicanos)
+
+### Módulo de Tarifas Pre-aprobadas (`/ops/pricing` > Tab "Tarifas Pre-aprobadas")
+- **Crear paquetes de tarifas** para que el equipo comercial cotice en 1 click
+- Flujo:
+  1. Seleccionar ruta del pricing
+  2. Definir costos (base + adicionales)
+  3. Seleccionar margen (30%, 25%, 20%, 15%)
+  4. Auto-generar servicios de venta o agregar manualmente
+  5. Guardar tarifa pre-aprobada
+- **Resumen en tiempo real**: Total costo, precio venta, utilidad, margen real
 
 ### Módulo de Cotizaciones (`/ops/quotes`)
 - **Lista de cotizaciones**: Número, Cliente, Estado, Total, Margen, Válida hasta
@@ -170,6 +204,8 @@ Portal separado para ejecutivos de operaciones con:
 - `GET /api/ops/pricing/services` - Servicios adicionales
 - `GET /api/ops/pricing/origins` - Orígenes disponibles
 - `GET /api/ops/pricing/destinations` - Destinos disponibles
+- `GET /api/ops/pricing/tariffs` - Tarifas pre-aprobadas
+- `POST /api/ops/pricing/tariffs` - Crear tarifa pre-aprobada
 
 ### Cotizaciones
 - `POST /api/ops/quotes` - Crear cotización
@@ -185,17 +221,19 @@ Portal separado para ejecutivos de operaciones con:
 - Extracción AI de documentos
 - Chatbot con datos reales, gráficos y reportes
 - **Gestión de Patio con optimización de movimientos**
+- **Tarifas reales de Transmodal implementadas** ✅
 
 ### P1 (High Priority) - Pendiente
 - Validar formulario de creación de órdenes (Orders.jsx reescrito pero sin probar)
 - Completar extracción AI de documentos en CreateOrder.jsx (frontend incompleto)
 - Fix bug de navegación del Sidebar (issue recurrente)
 - Probar renderizado de gráficos en Chatbot
+- Exportación de cotizaciones a PDF
+- Integración con ERP (requiere acceso al repo privado de GitHub)
 
 ### P2 (Medium Priority)
 - Integración real con ERP vía API
 - Google Maps para tracking real
 - Persistencia de datos en MongoDB
 - Notificaciones push
-- Exportación PDF
 - Multi-idioma
