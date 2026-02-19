@@ -733,13 +733,39 @@ export default function OpsTariffs() {
                         </div>
                       </div>
 
-                      {/* Expanded Details */}
+                      {/* Expanded Details - Ventas primero, luego Costos */}
                       {isExpanded && (
                         <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-4">
-                          {/* Costs */}
+                          {/* Sale Services - PRIMERO */}
+                          <div className="p-3 bg-emerald-50 rounded-lg">
+                            <p className="text-sm font-medium text-emerald-700 mb-2 flex items-center gap-1">
+                              <TrendingUp className="w-4 h-4" /> Desglose Venta al Cliente
+                            </p>
+                            <div className="space-y-1">
+                              {tariff.sale_services?.map((svc, i) => (
+                                <div key={i} className="flex justify-between text-sm">
+                                  <span className="text-slate-600">
+                                    <span className={`px-1 py-0.5 rounded text-xs mr-1 ${
+                                      svc.type === 'tarifa' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                                    }`}>
+                                      {svc.type === 'tarifa' ? 'T' : 'E'}
+                                    </span>
+                                    {svc.name}
+                                  </span>
+                                  <span className="text-emerald-600">{formatCurrency(svc.amount)}</span>
+                                </div>
+                              ))}
+                              <div className="pt-2 mt-2 border-t border-emerald-200 flex justify-between font-bold text-sm">
+                                <span className="text-emerald-800">Total Venta:</span>
+                                <span className="text-emerald-700">{formatCurrency(tariff.total_sale || tariff.sale_price)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Costs - SEGUNDO */}
                           <div className="p-3 bg-red-50 rounded-lg">
                             <p className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
-                              <TrendingDown className="w-4 h-4" /> Costos
+                              <TrendingDown className="w-4 h-4" /> Costos Internos
                             </p>
                             <div className="space-y-1">
                               {tariff.cost_components?.map((comp, i) => (
@@ -748,6 +774,10 @@ export default function OpsTariffs() {
                                   <span className="text-red-600">{formatCurrency(comp.amount)}</span>
                                 </div>
                               ))}
+                              <div className="pt-2 mt-2 border-t border-red-200 flex justify-between font-bold text-sm">
+                                <span className="text-red-800">Total Costo:</span>
+                                <span className="text-red-700">{formatCurrency(tariff.total_cost)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
