@@ -60,6 +60,20 @@ const PLATFORMS = [
     loginEndpoint: '/wms/auth/login'
   },
   {
+    id: 'warehouse-operator',
+    name: 'Operador de Almacén',
+    description: 'Tareas de picking, ubicación y movimientos',
+    icon: User,
+    color: 'from-violet-500 to-violet-700',
+    bgColor: 'bg-violet-50',
+    borderColor: 'border-violet-200',
+    hoverColor: 'hover:border-violet-400',
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-600',
+    route: '/warehouse-op/dashboard',
+    loginEndpoint: '/warehouse-op/auth/login'
+  },
+  {
     id: 'transport',
     name: 'Operador de Transporte',
     description: 'Asignación de unidades, rutas y seguimiento GPS',
