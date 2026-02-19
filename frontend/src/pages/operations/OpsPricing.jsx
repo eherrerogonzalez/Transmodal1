@@ -56,7 +56,7 @@ export default function OpsPricing() {
   const [destinations, setDestinations] = useState([]);
   const [suppliers, setSuppliers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tariffs');
+  const [activeTab, setActiveTab] = useState('purchases'); // Compras primero
   
   // Filters
   const [selectedOrigin, setSelectedOrigin] = useState('');
