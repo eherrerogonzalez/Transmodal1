@@ -4330,15 +4330,15 @@ def generate_suppliers_with_tariffs():
     
     return suppliers
 
-def get_suppliers():
-    global _suppliers_cache
-    if _suppliers_cache is None:
-        _suppliers_cache = generate_suppliers_with_tariffs()
-    return _suppliers_cache
+def get_purchase_suppliers():
+    global _purchase_suppliers_cache
+    if _purchase_suppliers_cache is None:
+        _purchase_suppliers_cache = generate_suppliers_with_tariffs()
+    return _purchase_suppliers_cache
 
-def reset_suppliers_cache():
-    global _suppliers_cache
-    _suppliers_cache = None
+def reset_purchase_suppliers_cache():
+    global _purchase_suppliers_cache
+    _purchase_suppliers_cache = None
 
 # ==================== ROUTES PRICING DATA ====================
 
