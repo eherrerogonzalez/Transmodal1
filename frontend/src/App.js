@@ -6,6 +6,7 @@ import { MainLayout } from "./components/layout/MainLayout";
 import { Toaster } from "./components/ui/sonner";
 
 // Pages
+import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
@@ -29,11 +30,22 @@ import OpsQuotes from "./pages/operations/OpsQuotes";
 import OpsSuppliers from "./pages/operations/OpsSuppliers";
 import OpsClients from "./pages/operations/OpsClients";
 
+// WMS Portal
+import WmsLayout from "./pages/wms/WmsLayout";
+import WmsDashboard from "./pages/wms/WmsDashboard";
+
+// Transport Portal
+import TransportLayout from "./pages/transport/TransportLayout";
+import TransportDashboard from "./pages/transport/TransportDashboard";
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Home - Platform selector */}
+          <Route path="/" element={<Home />} />
+          
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
           
@@ -49,7 +61,29 @@ function App() {
             <Route index element={<Navigate to="/ops/dashboard" replace />} />
           </Route>
           
-          {/* Protected routes */}
+          {/* WMS Portal */}
+          <Route path="/wms" element={<WmsLayout />}>
+            <Route path="dashboard" element={<WmsDashboard />} />
+            <Route path="inventory" element={<WmsDashboard />} />
+            <Route path="locations" element={<WmsDashboard />} />
+            <Route path="movements" element={<WmsDashboard />} />
+            <Route path="tasks" element={<WmsDashboard />} />
+            <Route path="reports" element={<WmsDashboard />} />
+            <Route index element={<Navigate to="/wms/dashboard" replace />} />
+          </Route>
+          
+          {/* Transport Portal */}
+          <Route path="/transport" element={<TransportLayout />}>
+            <Route path="dashboard" element={<TransportDashboard />} />
+            <Route path="units" element={<TransportDashboard />} />
+            <Route path="drivers" element={<TransportDashboard />} />
+            <Route path="routes" element={<TransportDashboard />} />
+            <Route path="tracking" element={<TransportDashboard />} />
+            <Route path="fuel" element={<TransportDashboard />} />
+            <Route index element={<Navigate to="/transport/dashboard" replace />} />
+          </Route>
+          
+          {/* Client Portal - Protected routes */}
           <Route element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/orders" element={<Orders />} />
@@ -64,11 +98,8 @@ function App() {
             <Route path="/account" element={<AccountStatement />} />
           </Route>
           
-          {/* Redirect root to dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
-          {/* Catch all - redirect to dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Catch all - redirect to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />
