@@ -750,28 +750,6 @@ export default function OpsTariffs() {
                               ))}
                             </div>
                           </div>
-                          
-                          {/* Sale Services */}
-                          <div className="p-3 bg-emerald-50 rounded-lg">
-                            <p className="text-sm font-medium text-emerald-700 mb-2 flex items-center gap-1">
-                              <TrendingUp className="w-4 h-4" /> Desglose Venta
-                            </p>
-                            <div className="space-y-1">
-                              {tariff.sale_services?.map((svc, i) => (
-                                <div key={i} className="flex justify-between text-sm">
-                                  <span className="text-slate-600">
-                                    <span className={`px-1 py-0.5 rounded text-xs mr-1 ${
-                                      svc.type === 'tarifa' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
-                                    }`}>
-                                      {svc.type === 'tarifa' ? 'T' : 'E'}
-                                    </span>
-                                    {svc.name}
-                                  </span>
-                                  <span className="text-emerald-600">{formatCurrency(svc.amount)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
                         </div>
                       )}
                     </CardContent>
