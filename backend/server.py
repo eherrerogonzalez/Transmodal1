@@ -4441,6 +4441,285 @@ async def remove_supplier_from_route(route_id: str, supplier_id: str, user: dict
     
     return {"success": True, "route": route}
 
+# ==================== TARIFAS PRE-APROBADAS ====================
+_preapproved_tariffs_cache = None
+
+def generate_preapproved_tariffs():
+    """Genera tarifas pre-aprobadas con costos desglosados"""
+    tariffs = []
+    
+    # Ejemplo: Ruta Shanghai - Veracruz con costos completos
+    tariffs.append(PreapprovedTariff(
+        route_id="route_shanghai_veracruz",
+        origin="Shanghai",
+        destination="Veracruz",
+        transport_mode="intermodal",
+        container_size="40ft",
+        cost_components=[
+            CostComponent(name="Flete Marítimo", amount=28000, is_base=True),
+            CostComponent(name="Flete Ferroviario", amount=8000, is_base=False),
+            CostComponent(name="Última Milla", amount=6000, is_base=False),
+            CostComponent(name="Maniobras Terminal Intermodal", amount=4000, is_base=False),
+            CostComponent(name="Maniobras Terminal Portuaria", amount=8000, is_base=False),
+            CostComponent(name="Despacho Aduanal", amount=2500, is_base=False),
+        ],
+        total_cost=56500,
+        margin_percent=20,
+        sale_price=70625,  # 56500 / (1 - 0.20)
+        sale_services=[
+            SaleService(name="Flete Internacional Door-to-Door", type="tarifa", amount=55000),
+            SaleService(name="Despacho Aduanal", type="tarifa", amount=4500),
+            SaleService(name="Maniobras y Handling", type="tarifa", amount=11125),
+        ],
+        total_sale=70625,
+        transit_days=28,
+        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d"),
+    ))
+    
+    # Ruta Shanghai - Manzanillo
+    tariffs.append(PreapprovedTariff(
+        route_id="route_shanghai_manzanillo",
+        origin="Shanghai",
+        destination="Manzanillo",
+        transport_mode="maritime",
+        container_size="40ft",
+        cost_components=[
+            CostComponent(name="Flete Marítimo", amount=32000, is_base=True),
+            CostComponent(name="Maniobras Terminal Portuaria", amount=6500, is_base=False),
+            CostComponent(name="Despacho Aduanal", amount=2800, is_base=False),
+        ],
+        total_cost=41300,
+        margin_percent=20,
+        sale_price=51625,
+        sale_services=[
+            SaleService(name="Flete Marítimo Shanghai-Manzanillo", type="tarifa", amount=42000),
+            SaleService(name="Despacho Aduanal", type="tarifa", amount=4000),
+            SaleService(name="Maniobras Portuarias", type="tarifa", amount=5625),
+        ],
+        total_sale=51625,
+        transit_days=21,
+        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d"),
+    ))
+    
+    # Ruta Shanghai - CDMX (Intermodal completo)
+    tariffs.append(PreapprovedTariff(
+        route_id="route_shanghai_cdmx",
+        origin="Shanghai",
+        destination="CDMX",
+        transport_mode="intermodal",
+        container_size="40ft HC",
+        cost_components=[
+            CostComponent(name="Flete Marítimo", amount=30000, is_base=True),
+            CostComponent(name="Flete Ferroviario", amount=9500, is_base=False),
+            CostComponent(name="Última Milla CDMX", amount=4500, is_base=False),
+            CostComponent(name="Maniobras Terminal Intermodal", amount=3800, is_base=False),
+            CostComponent(name="Maniobras Terminal Portuaria", amount=7200, is_base=False),
+            CostComponent(name="Despacho Aduanal", amount=3000, is_base=False),
+        ],
+        total_cost=58000,
+        margin_percent=20,
+        sale_price=72500,
+        sale_services=[
+            SaleService(name="Flete Internacional Puerta a Puerta", type="tarifa", amount=58000),
+            SaleService(name="Despacho y Gestión Aduanal", type="tarifa", amount=5500),
+            SaleService(name="Maniobras y Handling", type="tarifa", amount=9000),
+        ],
+        total_sale=72500,
+        transit_days=32,
+        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d"),
+    ))
+    
+    # Ruta Hamburgo - Veracruz
+    tariffs.append(PreapprovedTariff(
+        route_id="route_hamburgo_veracruz",
+        origin="Hamburgo",
+        destination="Veracruz",
+        transport_mode="maritime",
+        container_size="40ft",
+        cost_components=[
+            CostComponent(name="Flete Marítimo", amount=22000, is_base=True),
+            CostComponent(name="Maniobras Terminal Portuaria", amount=5500, is_base=False),
+            CostComponent(name="Despacho Aduanal", amount=2600, is_base=False),
+        ],
+        total_cost=30100,
+        margin_percent=20,
+        sale_price=37625,
+        sale_services=[
+            SaleService(name="Flete Marítimo Hamburgo-Veracruz", type="tarifa", amount=30000),
+            SaleService(name="Despacho Aduanal", type="tarifa", amount=3800),
+            SaleService(name="Maniobras Portuarias", type="tarifa", amount=3825),
+        ],
+        total_sale=37625,
+        transit_days=18,
+        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d"),
+    ))
+    
+    # Ruta Los Angeles - Monterrey
+    tariffs.append(PreapprovedTariff(
+        route_id="route_la_monterrey",
+        origin="Los Angeles",
+        destination="Monterrey",
+        transport_mode="intermodal",
+        container_size="40ft",
+        cost_components=[
+            CostComponent(name="Flete Marítimo", amount=8500, is_base=True),
+            CostComponent(name="Flete Terrestre Cross-border", amount=12000, is_base=False),
+            CostComponent(name="Maniobras Terminal", amount=3200, is_base=False),
+            CostComponent(name="Despacho Aduanal", amount=2200, is_base=False),
+        ],
+        total_cost=25900,
+        margin_percent=20,
+        sale_price=32375,
+        sale_services=[
+            SaleService(name="Flete Puerta a Puerta LA-MTY", type="tarifa", amount=26000),
+            SaleService(name="Despacho Aduanal USA-MX", type="tarifa", amount=3200),
+            SaleService(name="Maniobras y Handling", type="tarifa", amount=3175),
+        ],
+        total_sale=32375,
+        transit_days=8,
+        validity_start=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        validity_end=(datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d"),
+    ))
+    
+    return tariffs
+
+def get_preapproved_tariffs():
+    global _preapproved_tariffs_cache
+    if _preapproved_tariffs_cache is None:
+        _preapproved_tariffs_cache = generate_preapproved_tariffs()
+    return _preapproved_tariffs_cache
+
+@api_router.get("/ops/pricing/tariffs")
+async def get_tariffs(user: dict = Depends(verify_token)):
+    """Obtener todas las tarifas pre-aprobadas"""
+    tariffs = get_preapproved_tariffs()
+    return {"tariffs": [t.model_dump() for t in tariffs]}
+
+@api_router.get("/ops/pricing/tariffs/{tariff_id}")
+async def get_tariff(tariff_id: str, user: dict = Depends(verify_token)):
+    """Obtener una tarifa pre-aprobada específica"""
+    tariffs = get_preapproved_tariffs()
+    tariff = next((t for t in tariffs if t.id == tariff_id), None)
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Tarifa no encontrada")
+    return {"tariff": tariff.model_dump()}
+
+@api_router.post("/ops/pricing/tariffs")
+async def create_tariff(tariff_data: dict, user: dict = Depends(verify_token)):
+    """Crear una nueva tarifa pre-aprobada"""
+    global _preapproved_tariffs_cache
+    tariffs = get_preapproved_tariffs()
+    
+    # Crear componentes de costo
+    cost_components = []
+    total_cost = 0
+    for comp in tariff_data.get("cost_components", []):
+        cost_comp = CostComponent(
+            name=comp.get("name"),
+            amount=float(comp.get("amount", 0)),
+            is_base=comp.get("is_base", False)
+        )
+        cost_components.append(cost_comp)
+        total_cost += cost_comp.amount
+    
+    # Calcular precio de venta con margen
+    margin = float(tariff_data.get("margin_percent", 20))
+    sale_price = total_cost / (1 - margin / 100) if margin < 100 else total_cost
+    
+    # Crear servicios de venta
+    sale_services = []
+    total_sale = 0
+    for svc in tariff_data.get("sale_services", []):
+        sale_svc = SaleService(
+            name=svc.get("name"),
+            type=svc.get("type", "tarifa"),
+            amount=float(svc.get("amount", 0))
+        )
+        sale_services.append(sale_svc)
+        total_sale += sale_svc.amount
+    
+    # Si no hay servicios de venta, usar precio sugerido
+    if not sale_services:
+        total_sale = sale_price
+    
+    new_tariff = PreapprovedTariff(
+        route_id=tariff_data.get("route_id", ""),
+        origin=tariff_data.get("origin", ""),
+        destination=tariff_data.get("destination", ""),
+        transport_mode=tariff_data.get("transport_mode", "maritime"),
+        container_size=tariff_data.get("container_size", "40ft"),
+        cost_components=cost_components,
+        total_cost=total_cost,
+        margin_percent=margin,
+        sale_price=round(sale_price, 2),
+        sale_services=sale_services,
+        total_sale=round(total_sale, 2),
+        transit_days=int(tariff_data.get("transit_days", 0)),
+        validity_start=tariff_data.get("validity_start", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+        validity_end=tariff_data.get("validity_end", (datetime.now(timezone.utc) + timedelta(days=90)).strftime("%Y-%m-%d")),
+        created_by=user.get("username", "sistema"),
+        notes=tariff_data.get("notes")
+    )
+    
+    tariffs.append(new_tariff)
+    _preapproved_tariffs_cache = tariffs
+    
+    return {"success": True, "tariff": new_tariff.model_dump()}
+
+@api_router.put("/ops/pricing/tariffs/{tariff_id}")
+async def update_tariff(tariff_id: str, tariff_data: dict, user: dict = Depends(verify_token)):
+    """Actualizar una tarifa pre-aprobada"""
+    global _preapproved_tariffs_cache
+    tariffs = get_preapproved_tariffs()
+    tariff_idx = next((i for i, t in enumerate(tariffs) if t.id == tariff_id), None)
+    
+    if tariff_idx is None:
+        raise HTTPException(status_code=404, detail="Tarifa no encontrada")
+    
+    tariff = tariffs[tariff_idx]
+    
+    # Actualizar campos
+    if "cost_components" in tariff_data:
+        cost_components = []
+        total_cost = 0
+        for comp in tariff_data["cost_components"]:
+            cost_comp = CostComponent(
+                name=comp.get("name"),
+                amount=float(comp.get("amount", 0)),
+                is_base=comp.get("is_base", False)
+            )
+            cost_components.append(cost_comp)
+            total_cost += cost_comp.amount
+        tariff.cost_components = cost_components
+        tariff.total_cost = total_cost
+    
+    if "margin_percent" in tariff_data:
+        tariff.margin_percent = float(tariff_data["margin_percent"])
+    
+    # Recalcular precio de venta
+    tariff.sale_price = round(tariff.total_cost / (1 - tariff.margin_percent / 100), 2)
+    
+    if "sale_services" in tariff_data:
+        sale_services = []
+        total_sale = 0
+        for svc in tariff_data["sale_services"]:
+            sale_svc = SaleService(
+                name=svc.get("name"),
+                type=svc.get("type", "tarifa"),
+                amount=float(svc.get("amount", 0))
+            )
+            sale_services.append(sale_svc)
+            total_sale += sale_svc.amount
+        tariff.sale_services = sale_services
+        tariff.total_sale = total_sale if sale_services else tariff.sale_price
+    
+    _preapproved_tariffs_cache = tariffs
+    return {"success": True, "tariff": tariff.model_dump()}
+
 @api_router.post("/ops/quotes")
 async def create_quote(quote_data: dict, user: dict = Depends(verify_token)):
     """Crear nueva cotización"""
